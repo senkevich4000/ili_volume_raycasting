@@ -30,7 +30,8 @@ void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray);
 
 float sample1(vec3 texcoords);
 vec4 apply_colormap(float val);
-vec4 add_lighting(float val, vec3 loc, vec3 step, vec3 view_ray);
+vec3 calculate_normal_vector_from_gradient(vec3 loc, float val, vec3 step);
+vec4 add_lighting(vec4 color, vec3 normal_vector, vec3 view_ray);
 vec4 blend(vec4 base, vec4 blend);
 
 void main() {
@@ -112,30 +113,14 @@ void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
 
         float val = sample1(loc);
         vec4 colormap_value = apply_colormap(val);
-        //colormap_value.a *= uniformal_opacity;
-        //vec4 colormap_value = apply_colormap(val);
-        //colormap_value.a *= normalize(val);
-        //final_color = blend(final_color, colormap_value, uniformal_opacity);
-        //final_color = blend(colormap_value, final_color);
-        //gl_FragColor = apply_colormap(1.0);
 
-        // Advance location deeper into the volume
         loc += step;
     }
-    //final_color.a *= uniformal_opacity;
-    //gl_FragColor = final_color;
     gl_FragColor = apply_colormap(sample1(start_loc));
-    //gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
 }
 
 void trueraycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
-// 0.
-// 1. extract color from colormap
-// 2. ligtning for the color
-// 3. the_color.a *= uniform_step_opacity (per step)
-// 4. the_color.a *= normalized_intensity (per step)
-// 5. final_color.a *= uniform_opacity
-//
+
     gl_FragColor = vec4(0.0);
     vec4 final_color = vec4(0.0);
     vec3 loc = start_loc;
@@ -149,10 +134,12 @@ void trueraycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
 
         // Sample from the 3D texture
         float val = sample1(loc);
-        vec4 colormap_value = add_lighting(val, loc, step, view_ray);
-        colormap_value.a *= uniformal_step_opacity;
+        vec4 current_color = apply_colormap(val);
+        vec3 normal_vector = calculate_normal_vector_from_gradient(loc, val, step);
+        current_color = add_lighting(current_color, normal_vector, view_ray);
+        current_color.a *= uniformal_step_opacity;
         //colormap_value.a *= (val - min_intensity) / (max_intensity - min_intensity);
-        final_color = blend(final_color, colormap_value);
+        final_color = blend(final_color, current_color);
 
         // Advance location deeper into the volume
         loc += step;
@@ -166,13 +153,7 @@ vec4 blend(vec4 base, vec4 blend) {
     return blend * opacity + base * (1.0 - opacity);
 }
 
-vec4 add_lighting(float val, vec3 loc, vec3 step, vec3 view_ray) {
-    // Calculate color by incorporating lighting
-
-    // View direction
-    vec3 V = normalize(view_ray);
-
-    // calculate normal vector from gradient
+vec3 calculate_normal_vector_from_gradient(vec3 loc, float val, vec3 step) {
     vec3 N;
     float val1, val2;
     val1 = sample1(loc + vec3(-step[0], 0.0, 0.0));
@@ -187,6 +168,16 @@ vec4 add_lighting(float val, vec3 loc, vec3 step, vec3 view_ray) {
     val2 = sample1(loc + vec3(0.0, 0.0, +step[2]));
     N[2] = val1 - val2;
     val = max(max(val1, val2), val);
+    return N;
+}
+
+vec4 add_lighting(vec4 color, vec3 normal_vector, vec3 view_ray) {
+    // Calculate color by incorporating lighting
+
+    // View direction
+    vec3 V = normalize(view_ray);
+
+    vec3 N = normal_vector;
 
     float gm = length(N); // gradient magnitude
     N = normalize(N);
@@ -222,9 +213,7 @@ vec4 add_lighting(float val, vec3 loc, vec3 step, vec3 view_ray) {
     }
 
     // Calculate final color by componing different components
-    vec4 final_color;
-    vec4 color = apply_colormap(val);
-    final_color = color * (ambient_color + diffuse_color) + specular_color;
+    vec4 final_color = color * (ambient_color + diffuse_color) + specular_color;
     final_color.a = color.a;
     return final_color;
 }
