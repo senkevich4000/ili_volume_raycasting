@@ -18,16 +18,16 @@ varying vec4 v_farpos;
 // The maximum distance through our rendering volume is sqrt(3).
 const int MAX_STEPS = 887;      // 887 for 512^3, 1774 for 1024^3
 const int REFINEMENT_STEPS = 4;
-const float relative_step_size = 1.0;
+
+const float relative_step_size = 1.3;
 const vec4 ambient_color = vec4(0.2, 0.4, 0.2, 1.0);
 const vec4 diffuse_color = vec4(0.8, 0.2, 0.2, 1.0);
 const vec4 specular_color = vec4(1.0, 1.0, 1.0, 1.0);
 const float shininess = 40.0;
 
-const float uniformal_opacity = 1.0;
+const float uniformal_opacity = 0.3;
 const float uniformal_step_opacity = 1.0;
 
-void trueraycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray);
 void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray);
 
 float sample1(vec3 texcoords);
@@ -51,36 +51,38 @@ void main() {
     // v_position is the back face of the cuboid, so the initial distance calculated in the dot
     // product below is the distance from near clip plane to the back of the cuboid
     float distance = dot(nearpos - v_position, view_ray);
-    /*
-    distance = max(
-            distance,
-            min((-0.5 - v_position.x) / view_ray.x,
-                (u_size.x - 0.5 - v_position.x) / view_ray.x));
-    distance = max(
-            distance,
-            min((-0.5 - v_position.y) / view_ray.y,
-                (u_size.y - 0.5 - v_position.y) / view_ray.y));
-    distance = max(
-            distance,
-            min((-0.5 - v_position.z) / view_ray.z,
-                (u_size.z - 0.5 - v_position.z) / view_ray.z));
-    */
+    if (true)
+    {
+        distance = max(
+                distance,
+                min((-0.5 - v_position.x) / view_ray.x,
+                    (u_size.x - 0.5 - v_position.x) / view_ray.x));
+        distance = max(
+                distance,
+                min((-0.5 - v_position.y) / view_ray.y,
+                    (u_size.y - 0.5 - v_position.y) / view_ray.y));
+        distance = max(
+                distance,
+                min((-0.5 - v_position.z) / view_ray.z,
+                    (u_size.z - 0.5 - v_position.z) / view_ray.z));
+    }
 
     // Now we have the starting position on the front surface
     vec3 front = v_position + view_ray * distance;
-
-    if (distance > 0.0)
-    {
-        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-        return;
-    }
 
     // Decide how many steps to take
     int nsteps = int((-distance / relative_step_size) + 0.5);
     if ( nsteps < 1 )
     {
-        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-        return;
+        if(false)
+        {
+            gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+            return;
+        }
+        else
+        {
+            discard;
+        }
     }
 
     // Get starting location and step vector in texture coordinates
@@ -90,18 +92,25 @@ void main() {
     // For testing: show the number of steps. This helps to establish
     // whether the rays are correctly oriented
     //float size = u_size.x;
-    //float size = 300.0;
+    //float size = 500.0;
     //gl_FragColor = vec4(0.0, float(nsteps) / 1.0 / size, 0.0, 1.0);
     //return;
 
     if (u_renderstyle == 0)
     {
-        trueraycast(start_loc, step, nsteps, view_ray);
+        raycast(start_loc, step, nsteps, view_ray);
     }
 
     if (gl_FragColor.a < 0.05)
     {
-        gl_FragColor = vec4(0.9, 0.1, 0.1, 1.0);
+        if(false)
+        {
+            gl_FragColor = vec4(0.9, 0.1, 0.1, 1.0);
+        }
+        else
+        {
+            discard;
+        }
         return;
     }
 }
@@ -117,26 +126,6 @@ vec4 apply_colormap(float val) {
 }
 
 void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
-    gl_FragColor = vec4(0.0);
-    vec4 final_color = vec4(0.0);
-    vec3 loc = start_loc;
-
-    // Enter the raycasting loop. In WebGL 1 the loop index cannot be compared with
-    // non-constant expression. So we use a hard-coded max, and an additional condition
-    // inside the loop.
-    for (int iter=0; iter<MAX_STEPS; iter++) {
-        if (iter >= nsteps)
-            break;
-
-        float val = sample1(loc);
-        vec4 colormap_value = apply_colormap(val);
-
-        loc += step;
-    }
-    gl_FragColor = apply_colormap(sample1(start_loc));
-}
-
-void trueraycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
     gl_FragColor = vec4(0.0);
     vec4 final_color = vec4(0.0);
     vec3 loc = start_loc;

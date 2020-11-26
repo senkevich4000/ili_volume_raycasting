@@ -86,11 +86,11 @@ export async function run() {
     console.log("Trying to load the data...");
     let volume = await loadAsync(
         dataLoader, 
-        'assets/models/seed.nrrd',
+        'assets/models/stent.nrrd',
         notifyProgress.bind(renderContext))
         .catch((error) => errorOnFileLoad.call(renderContext));
 
-    if (true)
+    if (false)
     {
         volume = createCustomVolume();
     }
@@ -127,7 +127,7 @@ function fillSceneWithCustomData(scene) {
     const blueMaterial = new MeshBasicMaterial( { color: 0x0000ff });
 
     const offset = 50;
-    const scale = 9;
+    const scale = 50;
 
     const xCube = new Mesh(geometry, redMaterial);
     xCube.position.x += offset;
@@ -148,6 +148,10 @@ function fillSceneWithCustomData(scene) {
     group.add(xCube);
     group.add(yCube);
     group.add(zCube);
+
+    group.position.x -= 140;
+    group.position.y -= 140;
+    group.position.z -= 140;
 
     scene.add(group);
 }
@@ -202,8 +206,8 @@ function createCustomVolume() {
 }
 
 async function processData(renderContext, volume) {
-    const minIntensity = Math.min.apply(null, volume.data);
-    const maxIntensity = Math.max.apply(null, volume.data);
+    const minIntensity = volume.data.reduce((left, right) => left < right ? left : right);
+    const maxIntensity = volume.data.reduce((left, right) => left > right ? left : right);
     const texture = new DataTexture3D(
         volume.data,
         volume.xLength,
@@ -213,8 +217,6 @@ async function processData(renderContext, volume) {
     texture.format = RedFormat;
     texture.minFilter = texture.magFilter = LinearFilter;
     texture.unpackAlignment = 1;
-    texture.wrapS = RepeatWrapping;
-    texture.wrapT = RepeatWrapping;
 
     const textureLoader = new TextureLoader();
     const viridis = await loadAsync(
@@ -274,15 +276,14 @@ async function processData(renderContext, volume) {
         vertexShader: vertexShader,
         fragmentShader: fragmentShader,
         side: BackSide,
-        wireframe: false
     });
 
     const geometry = new BoxBufferGeometry(volume.xLength, volume.yLength, volume.zLength);
     geometry.translate(
-        volume.xLength,
-        volume.yLength,
-        volume.zLength);
-    //geometry.translate(0, 0, 0);
+        volume.xLength / 2 + 0.5,
+        volume.yLength / 2 + 0.5,
+        volume.zLength / 2 + 0.5);
+
     const mesh = new Mesh(geometry, material);
     renderContext.scene.add(mesh);
 }
