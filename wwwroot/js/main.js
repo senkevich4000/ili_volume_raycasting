@@ -267,14 +267,14 @@ async function processData(renderContext, volume) {
     }
 
     const uniforms = {
-        "u_size": { value: new Vector3(volume.xLength, volume.yLength, volume.zLength) },
-        "u_renderstyle": { value: RenderStyle.raycast },
-        "u_renderthreshold": { value: 0.15 },
-        "u_clim": { value: new Vector2(0, 1 ) },
-        "u_data": { value: texture },
-        "u_cmdata": { value: colormapTextures[colormap] },
-        "u_min_intensity": { value: minIntensity },
-        "u_max_intensity": { value: maxIntensity }
+        u_size: { value: new Vector3(volume.xLength, volume.yLength, volume.zLength) },
+        u_renderstyle: { value: RenderStyle.raycast },
+        u_renderthreshold: { value: 0.15 },
+        u_clim: { value: new Vector2(0, 1 ) },
+        u_data: { value: texture },
+        u_cmdata: { value: colormapTextures[colormap] },
+        u_min_intensity: { value: minIntensity },
+        u_max_intensity: { value: maxIntensity }
     };
 
     const material = new ShaderMaterial({
