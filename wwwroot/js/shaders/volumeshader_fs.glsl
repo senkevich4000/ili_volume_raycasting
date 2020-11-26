@@ -35,6 +35,8 @@ void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray);
 
 float sample1(vec3 texcoords);
 float calculate_distance(vec3 nearpos, vec3 farpos, vec3 view_ray);
+void debug_steps(int nsteps, float range);
+void discard_transparent();
 
 vec4 apply_colormap(float val);
 vec3 calculate_normal_vector_from_gradient(vec3 loc, float val, vec3 step);
@@ -76,29 +78,16 @@ void main() {
     vec3 step = ((v_position - front) / u_size) / float(nsteps);
     vec3 start_loc = front / u_size;
 
-    // For testing: show the number of steps. This helps to establish
-    // whether the rays are correctly oriented
-    //float size = u_size.x;
-    //float size = 500.0;
-    //gl_FragColor = vec4(0.0, float(nsteps) / 1.0 / size, 0.0, 1.0);
-    //return;
-
     if (u_renderstyle == 0)
     {
         raycast(start_loc, step, nsteps, view_ray);
     }
-
-    if (gl_FragColor.a < 0.05)
+    if (u_renderstyle == 1)
     {
-        if(debug_mode)
-        {
-            gl_FragColor = vec4(0.9, 0.1, 0.1, 1.0);
-        }
-        else
-        {
-            discard;
-        }
+        debug_steps(nsteps, u_size.x);
     }
+
+    discard_transparent();
 }
 
 float sample1(vec3 texcoords) {
@@ -239,3 +228,24 @@ vec4 add_lighting(vec4 color, vec3 normal_vector, vec3 view_ray) {
     final_color.a = color.a;
     return final_color;
 }
+
+void debug_steps(int nsteps, float range) {
+    // For testing: show the number of steps. This helps to establish
+    // whether the rays are correctly oriented
+    gl_FragColor = vec4(0.0, float(nsteps) / 1.0 / range, 0.0, 1.0);
+}
+
+void discard_transparent() {
+    if (gl_FragColor.a < 0.05)
+    {
+        if(debug_mode)
+        {
+            gl_FragColor = vec4(0.9, 0.1, 0.1, 1.0);
+        }
+        else
+        {
+            discard;
+        }
+    }
+}
+
