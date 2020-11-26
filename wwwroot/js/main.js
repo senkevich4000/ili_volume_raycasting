@@ -177,7 +177,7 @@ function createCamera(scene, width, height, size) {
 }
 
 function createCustomVolume() {
-    const size = 30;
+    const size = 20;
     const xLength = size;
     const yLength = size;
     const zLength = size;
@@ -341,7 +341,7 @@ function setScissorForElement(element) {
 }
 
 function render() {
-    console.log("Rendering...");
+    console.debug("Rendering...");
 
     this.renderer.setScissorTest(true);
 
