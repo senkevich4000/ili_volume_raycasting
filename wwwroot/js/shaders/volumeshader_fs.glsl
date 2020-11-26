@@ -5,6 +5,8 @@ uniform vec3 u_size;
 uniform int u_renderstyle;
 uniform float u_renderthreshold;
 uniform vec2 u_clim;
+uniform float u_min_intensity;
+uniform float u_max_intensity;
 
 uniform sampler3D u_data;
 uniform sampler2D u_cmdata;
@@ -16,7 +18,7 @@ varying vec4 v_farpos;
 // The maximum distance through our rendering volume is sqrt(3).
 const int MAX_STEPS = 887;      // 887 for 512^3, 1774 for 1024^3
 const int REFINEMENT_STEPS = 4;
-const float relative_step_size = 0.0005;
+const float relative_step_size = 1.0;
 const vec4 ambient_color = vec4(0.2, 0.4, 0.2, 1.0);
 const vec4 diffuse_color = vec4(0.8, 0.2, 0.2, 1.0);
 const vec4 specular_color = vec4(1.0, 1.0, 1.0, 1.0);
@@ -32,6 +34,7 @@ float sample1(vec3 texcoords);
 vec4 apply_colormap(float val);
 vec3 calculate_normal_vector_from_gradient(vec3 loc, float val, vec3 step);
 vec4 add_lighting(vec4 color, vec3 normal_vector, vec3 view_ray);
+float normalized_intensity(float intensity);
 
 vec4 inverseBlend(vec4 base, vec4 blend);
 vec4 blend(vec4 base, vec4 blend);
@@ -76,7 +79,7 @@ void main() {
     int nsteps = int((-distance / relative_step_size) + 0.5);
     if ( nsteps < 1 )
     {
-        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
         return;
     }
 
@@ -86,7 +89,7 @@ void main() {
 
     // For testing: show the number of steps. This helps to establish
     // whether the rays are correctly oriented
-    //gl_FragColor = vec4(0.0, float(nsteps) / 1.0 / u_size.x, 1.0, 1.0);
+    //gl_FragColor = vec4(0.0, float(nsteps) / 1.0 / u_size.x, 0.0, 1.0);
     //return;
 
     if (u_renderstyle == 0)
@@ -96,7 +99,8 @@ void main() {
 
     if (gl_FragColor.a < 0.05)
     {
-        discard;
+        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+        return;
     }
 }
 
@@ -131,7 +135,6 @@ void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
 }
 
 void trueraycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
-
     gl_FragColor = vec4(0.0);
     vec4 final_color = vec4(0.0);
     vec3 loc = start_loc;
@@ -149,9 +152,8 @@ void trueraycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
         vec3 normal_vector = calculate_normal_vector_from_gradient(loc, val, step);
         current_color = add_lighting(current_color, normal_vector, view_ray);
         current_color.a *= uniformal_step_opacity;
-        //colormap_value.a *= (val - min_intensity) / (max_intensity - min_intensity);
-        //final_color = inverseBlend(final_color, current_color);
-        final_color = inverseBlend(current_color, final_color);
+        current_color.a *= normalized_intensity(val);
+        final_color = inverseBlend(final_color, current_color);
 
         // Advance location deeper into the volume
         loc += step;
@@ -161,12 +163,16 @@ void trueraycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
 }
 
 vec4 inverseBlend(vec4 base, vec4 blend) {
-    return base + (1.0 - base.a) * vec4(blend.rgb * base.a, blend.a);
+    return base + (1.0 - base.a) * vec4(blend.rgb * blend.a, blend.a);
 }
 
 vec4 blend(vec4 base, vec4 blend) {
     float opacity = blend.a;
     return blend * opacity + base * (1.0 - opacity);
+}
+
+float normalized_intensity(float intensity) {
+    return (intensity - u_min_intensity) / (u_max_intensity - u_min_intensity);
 }
 
 vec3 calculate_normal_vector_from_gradient(vec3 loc, float val, vec3 step) {

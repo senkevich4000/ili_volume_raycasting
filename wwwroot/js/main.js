@@ -201,6 +201,8 @@ function createCustomVolume() {
 }
 
 async function processData(renderContext, volume) {
+    const minIntensity = Math.min.apply(null, volume.data);
+    const maxIntensity = Math.max.apply(null, volume.data);
     const texture = new DataTexture3D(
         volume.data,
         volume.xLength,
@@ -256,20 +258,15 @@ async function processData(renderContext, volume) {
     }
 
     const uniforms = {
-        "u_size": { value: new Vector3(1, 1, 1 ) },
+        "u_size": { value: new Vector3(volume.xLength, volume.yLength, volume.zLength) },
         "u_renderstyle": { value: 0 },
-        "u_renderthreshold": { value: 0.5 },
-        "u_clim": { value: new Vector2( 1, 1 ) },
-        "u_data": { value: null },
-        "u_cmdata": { value: null }
+        "u_renderthreshold": { value: 0.15 },
+        "u_clim": { value: new Vector2(0, 1 ) },
+        "u_data": { value: texture },
+        "u_cmdata": { value: colormapTextures[colormap] },
+        "u_min_intensity": { value: minIntensity },
+        "u_max_intensity": { value: maxIntensity }
     };
-
-    uniforms["u_data"].value = texture;
-    uniforms["u_size"].value.set(volume.xLength, volume.yLength, volume.zLength);
-    uniforms["u_clim"].value.set(0, 1);
-    uniforms["u_renderstyle"].value = 0;
-    uniforms["u_renderthreshold"].value = 0.15;
-    uniforms["u_cmdata"].value = colormapTextures[colormap];
 
     const material = new ShaderMaterial({
         uniforms: uniforms,
