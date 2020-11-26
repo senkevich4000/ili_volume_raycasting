@@ -28,9 +28,14 @@ const float shininess = 40.0;
 const float uniformal_opacity = 0.3;
 const float uniformal_step_opacity = 1.0;
 
+const bool complex_distance_calculation = true;
+const bool debug_mode = false;
+
 void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray);
 
 float sample1(vec3 texcoords);
+float calculate_distance(vec3 nearpos, vec3 farpos, vec3 view_ray);
+
 vec4 apply_colormap(float val);
 vec3 calculate_normal_vector_from_gradient(vec3 loc, float val, vec3 step);
 vec4 add_lighting(vec4 color, vec3 normal_vector, vec3 view_ray);
@@ -47,25 +52,7 @@ void main() {
     // Calculate unit vector pointing in the view direction through this fragment.
     vec3 view_ray = normalize(nearpos.xyz - farpos.xyz);
 
-    // Compute the (negative) distance to the front surface or near clipping plane.
-    // v_position is the back face of the cuboid, so the initial distance calculated in the dot
-    // product below is the distance from near clip plane to the back of the cuboid
-    float distance = dot(nearpos - v_position, view_ray);
-    if (true)
-    {
-        distance = max(
-                distance,
-                min((-0.5 - v_position.x) / view_ray.x,
-                    (u_size.x - 0.5 - v_position.x) / view_ray.x));
-        distance = max(
-                distance,
-                min((-0.5 - v_position.y) / view_ray.y,
-                    (u_size.y - 0.5 - v_position.y) / view_ray.y));
-        distance = max(
-                distance,
-                min((-0.5 - v_position.z) / view_ray.z,
-                    (u_size.z - 0.5 - v_position.z) / view_ray.z));
-    }
+    float distance = calculate_distance(nearpos, farpos, view_ray);
 
     // Now we have the starting position on the front surface
     vec3 front = v_position + view_ray * distance;
@@ -74,7 +61,7 @@ void main() {
     int nsteps = int((-distance / relative_step_size) + 0.5);
     if ( nsteps < 1 )
     {
-        if(false)
+        if(debug_mode)
         {
             gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
             return;
@@ -103,7 +90,7 @@ void main() {
 
     if (gl_FragColor.a < 0.05)
     {
-        if(false)
+        if(debug_mode)
         {
             gl_FragColor = vec4(0.9, 0.1, 0.1, 1.0);
         }
@@ -111,13 +98,35 @@ void main() {
         {
             discard;
         }
-        return;
     }
 }
 
 float sample1(vec3 texcoords) {
     // Sample float value from a 3D texture. Assumes intensity data.
     return texture(u_data, texcoords.xyz).r;
+}
+
+float calculate_distance(vec3 nearpos, vec3 farpos, vec3 view_ray) {
+    // Compute the (negative) distance to the front surface or near clipping plane.
+    // v_position is the back face of the cuboid, so the initial distance calculated in the dot
+    // product below is the distance from near clip plane to the back of the cuboid
+    float distance = dot(nearpos - v_position, view_ray);
+    if (complex_distance_calculation)
+    {
+        distance = max(
+            distance,
+            min((-0.5 - v_position.x) / view_ray.x,
+                (u_size.x - 0.5 - v_position.x) / view_ray.x));
+        distance = max(
+            distance,
+            min((-0.5 - v_position.y) / view_ray.y,
+                (u_size.y - 0.5 - v_position.y) / view_ray.y));
+        distance = max(
+            distance,
+            min((-0.5 - v_position.z) / view_ray.z,
+                (u_size.z - 0.5 - v_position.z) / view_ray.z));
+    }
+    return distance;
 }
 
 vec4 apply_colormap(float val) {

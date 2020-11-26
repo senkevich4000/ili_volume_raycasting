@@ -42,6 +42,12 @@ import { OrbitControls } from './node_modules/three/examples/jsm/controls/OrbitC
 import { NRRDLoader } from './node_modules/three/examples/jsm/loaders/NRRDLoader.js';
 import { ShaderLoader } from './ShaderLoader.js';
 
+var RenderStyle = {
+    raycast : 0,
+    steps_debug: 1
+};
+Object.freeze(RenderStyle);
+
 export async function run() {
     const width = window.innerWidth;
     const height = window.innerHeight;
@@ -262,7 +268,7 @@ async function processData(renderContext, volume) {
 
     const uniforms = {
         "u_size": { value: new Vector3(volume.xLength, volume.yLength, volume.zLength) },
-        "u_renderstyle": { value: 0 },
+        "u_renderstyle": { value: RenderStyle.raycast },
         "u_renderthreshold": { value: 0.15 },
         "u_clim": { value: new Vector2(0, 1 ) },
         "u_data": { value: texture },
