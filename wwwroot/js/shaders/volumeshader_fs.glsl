@@ -23,7 +23,7 @@ const float relative_step_size = 1.3;
 const vec4 ambient_color = vec4(0.2, 0.4, 0.2, 1.0);
 const vec4 diffuse_color = vec4(0.8, 0.2, 0.2, 1.0);
 const vec4 specular_color = vec4(1.0, 1.0, 1.0, 1.0);
-const float shininess = 40.0;
+const float shininess = 80.0;
 
 const float uniformal_opacity = 0.3;
 const float uniformal_step_opacity = 1.0;
@@ -139,7 +139,7 @@ void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
         float val = sample1(loc);
         vec4 current_color = apply_colormap(val);
         vec3 normal_vector = calculate_normal_vector_from_gradient(loc, val, step);
-        //current_color = add_lighting(current_color, normal_vector, view_ray);
+        current_color = add_lighting(current_color, normal_vector, view_ray);
         current_color.a *= uniformal_step_opacity;
         current_color.a *= normalized_intensity(val);
         final_color = inverseBlend(final_color, current_color);
