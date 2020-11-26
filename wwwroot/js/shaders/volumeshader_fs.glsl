@@ -89,7 +89,9 @@ void main() {
 
     // For testing: show the number of steps. This helps to establish
     // whether the rays are correctly oriented
-    //gl_FragColor = vec4(0.0, float(nsteps) / 1.0 / u_size.x, 0.0, 1.0);
+    //float size = u_size.x;
+    //float size = 300.0;
+    //gl_FragColor = vec4(0.0, float(nsteps) / 1.0 / size, 0.0, 1.0);
     //return;
 
     if (u_renderstyle == 0)
@@ -99,7 +101,7 @@ void main() {
 
     if (gl_FragColor.a < 0.05)
     {
-        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+        gl_FragColor = vec4(0.9, 0.1, 0.1, 1.0);
         return;
     }
 }
@@ -150,7 +152,7 @@ void trueraycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
         float val = sample1(loc);
         vec4 current_color = apply_colormap(val);
         vec3 normal_vector = calculate_normal_vector_from_gradient(loc, val, step);
-        current_color = add_lighting(current_color, normal_vector, view_ray);
+        //current_color = add_lighting(current_color, normal_vector, view_ray);
         current_color.a *= uniformal_step_opacity;
         current_color.a *= normalized_intensity(val);
         final_color = inverseBlend(final_color, current_color);

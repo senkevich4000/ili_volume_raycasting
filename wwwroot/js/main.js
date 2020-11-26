@@ -121,31 +121,30 @@ async function loadAsync(loader, path, progressCallback) {
 function fillSceneWithCustomData(scene) {
 
     const geometry = new BoxGeometry(10, 10, 10);
-    const material = new MeshBasicMaterial( { color: 0x00ff00 });
 
-    const pivot = new Mesh(geometry, material);
-    addAxes(pivot);
+    const redMaterial = new MeshBasicMaterial( { color: 0xff0000 });
+    const greenMaterial = new MeshBasicMaterial( { color: 0x00ff00 });
+    const blueMaterial = new MeshBasicMaterial( { color: 0x0000ff });
 
     const offset = 50;
     const scale = 9;
 
-    const xCube = new Mesh(geometry, material);
+    const xCube = new Mesh(geometry, redMaterial);
     xCube.position.x += offset;
     addAxes(xCube);
     xCube.scale.set(scale, 1, 1);
 
-    const yCube = new Mesh(geometry, material);
+    const yCube = new Mesh(geometry, greenMaterial);
     yCube.position.y += offset;
     addAxes(yCube);
     yCube.scale.set(1, scale, 1);
 
-    const zCube = new Mesh(geometry, material);
+    const zCube = new Mesh(geometry, blueMaterial);
     zCube.position.z += offset;
     addAxes(zCube);
     zCube.scale.set(1, 1, scale);
 
     const group = new Group();
-    group.add(pivot);
     group.add(xCube);
     group.add(yCube);
     group.add(zCube);
@@ -177,9 +176,9 @@ function createCamera(scene, width, height, size) {
 }
 
 function createCustomVolume() {
-    const size = 50;
+    const size = 55;
     const xLength = size;
-    const yLength = size;
+    const yLength = size
     const zLength = size;
 
     const data = new Float32Array(xLength * yLength * zLength);
@@ -187,7 +186,9 @@ function createCustomVolume() {
         for(let yIndex = 0; yIndex < yLength; yIndex++) {
             for(let zIndex = 0; zIndex < zLength; zIndex++) {
                 const value = xIndex / (xLength - 1);
-                data[xIndex * xLength + yIndex * yLength + zIndex] = value;
+                const index = zIndex + yLength * (yIndex + xLength * xIndex);
+                //console.log(index);
+                data[index] = value;
             }
         }
     }
