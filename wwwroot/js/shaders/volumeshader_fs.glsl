@@ -48,6 +48,7 @@ void main() {
     // v_position is the back face of the cuboid, so the initial distance calculated in the dot
     // product below is the distance from near clip plane to the back of the cuboid
     float distance = dot(nearpos - v_position, view_ray);
+    /*
     distance = max(
             distance,
             min((-0.5 - v_position.x) / view_ray.x,
@@ -60,13 +61,14 @@ void main() {
             distance,
             min((-0.5 - v_position.z) / view_ray.z,
                 (u_size.z - 0.5 - v_position.z) / view_ray.z));
+    */
 
     // Now we have the starting position on the front surface
     vec3 front = v_position + view_ray * distance;
 
     if (distance > 0.0)
     {
-        gl_FragColor = vec4(1.0, 1.0, 0.0, 1.0);
+        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
         return;
     }
 
@@ -74,7 +76,7 @@ void main() {
     int nsteps = int((-distance / relative_step_size) + 0.5);
     if ( nsteps < 1 )
     {
-        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
         return;
     }
 

@@ -177,7 +177,7 @@ function createCamera(scene, width, height, size) {
 }
 
 function createCustomVolume() {
-    const size = 20;
+    const size = 50;
     const xLength = size;
     const yLength = size;
     const zLength = size;
@@ -256,7 +256,7 @@ async function processData(renderContext, volume) {
     }
 
     const uniforms = {
-        "u_size": { value: new Vector3( 1, 1, 1 ) },
+        "u_size": { value: new Vector3(1, 1, 1 ) },
         "u_renderstyle": { value: 0 },
         "u_renderthreshold": { value: 0.5 },
         "u_clim": { value: new Vector2( 1, 1 ) },
