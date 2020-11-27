@@ -90,24 +90,28 @@ export async function run() {
 
     const dataLoader = new NRRDLoader();
     console.log("Trying to load the data...");
-    let volume = await loadAsync(
+    const shapeVolume = await loadAsync(
         dataLoader, 
         'assets/models/stent.nrrd',
         notifyProgress.bind(renderContext))
         .catch((error) => errorOnFileLoad.call(renderContext));
+    const intensityVolume = createIntensityVolume(
+        shapeVolume.xLength,
+        shapeVolume.yLength,
+        shapeVolume.zLength);
 
-    if (false)
-    {
-        volume = createCustomVolume();
-    }
-
-    if(volume)
+    if(shapeVolume && intensityVolume)
     {
         console.log("Data loaded!");
-        await processData(renderContext, volume);
+        await processData(renderContext, shapeVolume, intensityVolume);
     }
 
     renderCall();
+}
+
+function cameraFollowObject(camera, object, offset) {
+    const cameraPosition = object.position + offset;
+    camera.position.set(offset);
 }
 
 async function loadAsync(loader, path, progressCallback) {
@@ -185,20 +189,13 @@ function createCamera(scene, width, height, size) {
     return camera;
 }
 
-function createCustomVolume() {
-    const size = 55;
-    const xLength = size;
-    const yLength = size
-    const zLength = size;
-
+function createIntensityVolume(xLength, yLength, zLength) {
     const data = new Float32Array(xLength * yLength * zLength);
     for(let xIndex = 0; xIndex < xLength; xIndex++) {
         for(let yIndex = 0; yIndex < yLength; yIndex++) {
             for(let zIndex = 0; zIndex < zLength; zIndex++) {
                 const value = xIndex / (xLength - 1);
-                const index = zIndex + yLength * (yIndex + xLength * xIndex);
-                //console.log(index);
-                data[index] = value;
+                data[zIndex + yLength * (yIndex + xLength * xIndex)] = value;
             }
         }
     }
@@ -211,9 +208,7 @@ function createCustomVolume() {
     };
 }
 
-async function processData(renderContext, volume) {
-    const minIntensity = volume.data.reduce((left, right) => left < right ? left : right);
-    const maxIntensity = volume.data.reduce((left, right) => left > right ? left : right);
+function createDefaultTextureFromVolume(volume) {
     const texture = new DataTexture3D(
         volume.data,
         volume.xLength,
@@ -223,6 +218,24 @@ async function processData(renderContext, volume) {
     texture.format = RedFormat;
     texture.minFilter = texture.magFilter = LinearFilter;
     texture.unpackAlignment = 1;
+
+    return texture;
+}
+
+function Bounds(volume) {
+    this.min = volume.data
+        .reduce((left, right) => left < right ? left : right);
+    this.max = volume.data
+        .reduce((left, right) => left > right ? left : right);
+
+    return this;
+}
+
+Bounds.prototype.asVector = function () {
+    return new Vector2(this.min, this.max);
+}
+
+async function processData(renderContext, shapeVolume, intensityVolume) {
 
     const textureLoader = new TextureLoader();
     const viridis = await loadAsync(
@@ -245,7 +258,7 @@ async function processData(renderContext, volume) {
         gray: gray
     };
 
-    const colormap = 'viridis';
+    const colormap = 'gray';
 
     console.log("Loading shaders...");
     const shaderLoader = new ShaderLoader();
@@ -266,15 +279,37 @@ async function processData(renderContext, volume) {
         console.log("fragment shader loaded!");
     }
 
+    const shapeBounds = new Bounds(shapeVolume);
+    const intensityBounds = new Bounds(intensityVolume);
+
+    const shapeTexture = createDefaultTextureFromVolume(shapeVolume);
+    const intensityTexture = createDefaultTextureFromVolume(intensityVolume);
+
+    const shapeSize = new Vector3(
+        shapeVolume.xLength,
+        shapeVolume.yLength,
+        shapeVolume.zLength);
+    const intensitySize = new Vector3(
+        intensityVolume.xLength,
+        intensityVolume.yLength,
+        intensityVolume.zLength);
+
+    // add shading (true/false) as int.
     const uniforms = {
-        u_size: { value: new Vector3(volume.xLength, volume.yLength, volume.zLength) },
+
+        u_shape_size: { value: shapeSize },
+        u_shape_data: { value: shapeTexture },
+        u_shape_bounds: { value: shapeBounds.asVector() },
+
+        u_intensity_size: { value: intensitySize },
+        u_intensity_data: { value: intensityTexture },
+        u_intensity_bounds: { value: shapeBounds.asVector() },
+
         u_renderstyle: { value: RenderStyle.raycast },
         u_renderthreshold: { value: 0.15 },
         u_clim: { value: new Vector2(0, 1 ) },
-        u_data: { value: texture },
+
         u_cmdata: { value: colormapTextures[colormap] },
-        u_min_intensity: { value: minIntensity },
-        u_max_intensity: { value: maxIntensity }
     };
 
     const material = new ShaderMaterial({
@@ -284,13 +319,17 @@ async function processData(renderContext, volume) {
         side: BackSide,
     });
 
-    const geometry = new BoxBufferGeometry(volume.xLength, volume.yLength, volume.zLength);
+    const geometry = new BoxBufferGeometry(
+        shapeVolume.xLength, 
+        shapeVolume.yLength, 
+        shapeVolume.zLength);
     geometry.translate(
-        volume.xLength / 2 + 0.5,
-        volume.yLength / 2 + 0.5,
-        volume.zLength / 2 + 0.5);
+        shapeVolume.xLength / 2 + 0.5,
+        shapeVolume.yLength / 2 + 0.5,
+        shapeVolume.zLength / 2 + 0.5);
 
     const mesh = new Mesh(geometry, material);
+
     renderContext.scene.add(mesh);
 }
 

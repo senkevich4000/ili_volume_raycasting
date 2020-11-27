@@ -1,14 +1,18 @@
 precision highp float;
 precision mediump sampler3D;
 
-uniform vec3 u_size;
+uniform vec3 u_shape_size;
+uniform sampler3D u_shape_data;
+uniform vec2 u_shape_bounds;
+
+uniform vec3 u_intensity_size;
+uniform sampler3D u_intensity_data;
+uniform vec2 u_intensity_bounds;
+
 uniform int u_renderstyle;
 uniform float u_renderthreshold;
 uniform vec2 u_clim;
-uniform float u_min_intensity;
-uniform float u_max_intensity;
 
-uniform sampler3D u_data;
 uniform sampler2D u_cmdata;
 
 varying vec3 v_position;
@@ -75,8 +79,8 @@ void main() {
     }
 
     // Get starting location and step vector in texture coordinates
-    vec3 step = ((v_position - front) / u_size) / float(nsteps);
-    vec3 start_loc = front / u_size;
+    vec3 step = ((v_position - front) / u_shape_size) / float(nsteps);
+    vec3 start_loc = front / u_shape_size;
 
     if (u_renderstyle == 0)
     {
@@ -84,7 +88,7 @@ void main() {
     }
     if (u_renderstyle == 1)
     {
-        debug_steps(nsteps, u_size.x);
+        debug_steps(nsteps, u_shape_size.x);
     }
 
     discard_transparent();
@@ -92,7 +96,7 @@ void main() {
 
 float sample1(vec3 texcoords) {
     // Sample float value from a 3D texture. Assumes intensity data.
-    return texture(u_data, texcoords.xyz).r;
+    return texture(u_shape_data, texcoords.xyz).r;
 }
 
 float calculate_distance(vec3 nearpos, vec3 farpos, vec3 view_ray) {
@@ -105,15 +109,15 @@ float calculate_distance(vec3 nearpos, vec3 farpos, vec3 view_ray) {
         distance = max(
             distance,
             min((-0.5 - v_position.x) / view_ray.x,
-                (u_size.x - 0.5 - v_position.x) / view_ray.x));
+                (u_shape_size.x - 0.5 - v_position.x) / view_ray.x));
         distance = max(
             distance,
             min((-0.5 - v_position.y) / view_ray.y,
-                (u_size.y - 0.5 - v_position.y) / view_ray.y));
+                (u_shape_size.y - 0.5 - v_position.y) / view_ray.y));
         distance = max(
             distance,
             min((-0.5 - v_position.z) / view_ray.z,
-                (u_size.z - 0.5 - v_position.z) / view_ray.z));
+                (u_shape_size.z - 0.5 - v_position.z) / view_ray.z));
     }
     return distance;
 }
@@ -134,6 +138,10 @@ void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
     for (int iter=0; iter<MAX_STEPS; iter++) {
         if (iter >= nsteps)
             break;
+
+        // get color1 color2
+        // blend them
+        // add light
 
         // Sample from the 3D texture
         float val = sample1(loc);
@@ -161,7 +169,7 @@ vec4 blend(vec4 base, vec4 blend) {
 }
 
 float normalized_intensity(float intensity) {
-    return (intensity - u_min_intensity) / (u_max_intensity - u_min_intensity);
+    return (intensity - u_shape_bounds.x) / (u_shape_bounds.y - u_shape_bounds.x);
 }
 
 vec3 calculate_normal_vector_from_gradient(vec3 loc, float val, vec3 step) {
