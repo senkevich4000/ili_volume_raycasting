@@ -1,8 +1,8 @@
-# raycast_playgroup
+# ili volume raycasting
 
 Demo project with raycasting implementation.
 
-Requirements: .NET 5
+Web server: ASP.NET 5
 
 To run the server use
 ```bash
