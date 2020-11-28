@@ -57,10 +57,10 @@ export async function run() {
 
     const viewSize = 256;
     const camera = createCamera(scene, width, height / 2, viewSize);
-    const observerCamera = createCamera(scene, width, height / 2, viewSize / 2);
+    const observerCamera = createCamera(scene, width, height / 2, viewSize * 2);
     observerCamera.near = 1;
     observerCamera.far = 4000;
-    observerCamera.position.set(0, 10, 0);
+    observerCamera.position.set(100, 100, 0);
     observerCamera.lookAt(0, 0, 0);
 
     const cameraHelper = new CameraHelper(camera);
@@ -194,8 +194,9 @@ function createIntensityVolume(xLength, yLength, zLength) {
     for(let xIndex = 0; xIndex < xLength; xIndex++) {
         for(let yIndex = 0; yIndex < yLength; yIndex++) {
             for(let zIndex = 0; zIndex < zLength; zIndex++) {
+                const index = zIndex + zLength * (yIndex + yLength * xIndex);
                 const value = xIndex / (xLength - 1);
-                data[zIndex + yLength * (yIndex + xLength * xIndex)] = value;
+                data[index] = value;
             }
         }
     }
@@ -253,12 +254,6 @@ async function processData(renderContext, shapeVolume, intensityVolume) {
     {
         return;
     }
-    const colormapTextures = {
-        viridis: viridis,
-        gray: gray
-    };
-
-    const colormap = 'gray';
 
     console.log("Loading shaders...");
     const shaderLoader = new ShaderLoader();
@@ -299,17 +294,18 @@ async function processData(renderContext, shapeVolume, intensityVolume) {
 
         u_shape_size: { value: shapeSize },
         u_shape_data: { value: shapeTexture },
+        u_shape_cmdata: { value: gray },
         u_shape_bounds: { value: shapeBounds.asVector() },
 
         u_intensity_size: { value: intensitySize },
         u_intensity_data: { value: intensityTexture },
+        u_intensity_cmdata: { value: viridis },
         u_intensity_bounds: { value: shapeBounds.asVector() },
 
         u_renderstyle: { value: RenderStyle.raycast },
         u_renderthreshold: { value: 0.15 },
         u_clim: { value: new Vector2(0, 1 ) },
 
-        u_cmdata: { value: colormapTextures[colormap] },
     };
 
     const material = new ShaderMaterial({
@@ -319,16 +315,15 @@ async function processData(renderContext, shapeVolume, intensityVolume) {
         side: BackSide,
     });
 
-    const geometry = new BoxBufferGeometry(
-        shapeVolume.xLength, 
-        shapeVolume.yLength, 
-        shapeVolume.zLength);
-    geometry.translate(
-        shapeVolume.xLength / 2 + 0.5,
-        shapeVolume.yLength / 2 + 0.5,
-        shapeVolume.zLength / 2 + 0.5);
+    const geometry = new BoxBufferGeometry(1, 1, 1);
+    const translate = 0.5;
+    geometry.translate(translate, translate, translate);
+    geometry.scale(shapeSize.x, shapeSize.y, shapeSize.z);
 
     const mesh = new Mesh(geometry, material);
+    mesh.position.x = -shapeSize.x / 2;
+    mesh.position.y = -shapeSize.y / 2;
+    mesh.position.z = -shapeSize.z / 2;
 
     renderContext.scene.add(mesh);
 }

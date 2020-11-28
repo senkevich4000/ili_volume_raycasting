@@ -3,17 +3,17 @@ precision mediump sampler3D;
 
 uniform vec3 u_shape_size;
 uniform sampler3D u_shape_data;
+uniform sampler2D u_shape_cmdata;
 uniform vec2 u_shape_bounds;
 
 uniform vec3 u_intensity_size;
 uniform sampler3D u_intensity_data;
+uniform sampler2D u_intensity_cmdata;
 uniform vec2 u_intensity_bounds;
 
 uniform int u_renderstyle;
 uniform float u_renderthreshold;
 uniform vec2 u_clim;
-
-uniform sampler2D u_cmdata;
 
 varying vec3 v_position;
 varying vec4 v_nearpos;
@@ -30,19 +30,22 @@ const vec4 specular_color = vec4(1.0, 1.0, 1.0, 1.0);
 const float shininess = 80.0;
 
 const float uniformal_opacity = 0.3;
-const float uniformal_step_opacity = 1.0;
+const float uniformal_step_opacity = 0.5;
 
 const bool complex_distance_calculation = true;
 const bool debug_mode = false;
 
 void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray);
 
-float sample1(vec3 texcoords);
+float shape_sample(vec3 texcoords);
+float intensity_sample(vec3 texcoords);
 float calculate_distance(vec3 nearpos, vec3 farpos, vec3 view_ray);
 void debug_steps(int nsteps, float range);
 void discard_transparent();
 
-vec4 apply_colormap(float val);
+vec4 apply_shape_colormap(float val);
+vec4 apply_intensity_colormap(float val);
+
 vec3 calculate_normal_vector_from_gradient(vec3 loc, float val, vec3 step);
 vec4 add_lighting(vec4 color, vec3 normal_vector, vec3 view_ray);
 float normalized_intensity(float intensity);
@@ -94,9 +97,14 @@ void main() {
     discard_transparent();
 }
 
-float sample1(vec3 texcoords) {
+float shape_sample(vec3 texcoords) {
     // Sample float value from a 3D texture. Assumes intensity data.
     return texture(u_shape_data, texcoords.xyz).r;
+}
+
+float intensity_sample(vec3 texcoords) {
+    // Sample float value from a 3D texture. Assumes intensity data.
+    return texture(u_intensity_data, texcoords.xyz).r;
 }
 
 float calculate_distance(vec3 nearpos, vec3 farpos, vec3 view_ray) {
@@ -122,9 +130,14 @@ float calculate_distance(vec3 nearpos, vec3 farpos, vec3 view_ray) {
     return distance;
 }
 
-vec4 apply_colormap(float val) {
+vec4 apply_shape_colormap(float val) {
     val = (val - u_clim[0]) / (u_clim[1] - u_clim[0]);
-    return texture2D(u_cmdata, vec2(val, 0.5));
+    return texture2D(u_shape_cmdata, vec2(val, 0.5));
+}
+
+vec4 apply_intensity_colormap(float val) {
+    val = (val - u_clim[0]) / (u_clim[1] - u_clim[0]);
+    return texture2D(u_intensity_cmdata, vec2(val, 0.5));
 }
 
 void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
@@ -144,12 +157,16 @@ void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
         // add light
 
         // Sample from the 3D texture
-        float val = sample1(loc);
-        vec4 current_color = apply_colormap(val);
-        vec3 normal_vector = calculate_normal_vector_from_gradient(loc, val, step);
+        float shape_value = shape_sample(loc);
+        float intensity_value = intensity_sample(loc);
+        vec4 shape_color = apply_shape_colormap(shape_value);
+        vec4 intensity_color = apply_intensity_colormap(intensity_value);
+        shape_color.a *= uniformal_step_opacity;
+        vec4 current_color = inverseBlend(shape_color, intensity_color);
+        vec3 normal_vector = calculate_normal_vector_from_gradient(loc, shape_value, step);
         current_color = add_lighting(current_color, normal_vector, view_ray);
-        current_color.a *= uniformal_step_opacity;
-        current_color.a *= normalized_intensity(val);
+        //current_color.a *= uniformal_step_opacity;
+        current_color.a *= normalized_intensity(shape_value);
         final_color = inverseBlend(final_color, current_color);
 
         // Advance location deeper into the volume
@@ -175,16 +192,16 @@ float normalized_intensity(float intensity) {
 vec3 calculate_normal_vector_from_gradient(vec3 loc, float val, vec3 step) {
     vec3 N;
     float val1, val2;
-    val1 = sample1(loc + vec3(-step[0], 0.0, 0.0));
-    val2 = sample1(loc + vec3(+step[0], 0.0, 0.0));
+    val1 = shape_sample(loc + vec3(-step[0], 0.0, 0.0));
+    val2 = shape_sample(loc + vec3(+step[0], 0.0, 0.0));
     N[0] = val1 - val2;
     val = max(max(val1, val2), val);
-    val1 = sample1(loc + vec3(0.0, -step[1], 0.0));
-    val2 = sample1(loc + vec3(0.0, +step[1], 0.0));
+    val1 = shape_sample(loc + vec3(0.0, -step[1], 0.0));
+    val2 = shape_sample(loc + vec3(0.0, +step[1], 0.0));
     N[1] = val1 - val2;
     val = max(max(val1, val2), val);
-    val1 = sample1(loc + vec3(0.0, 0.0, -step[2]));
-    val2 = sample1(loc + vec3(0.0, 0.0, +step[2]));
+    val1 = shape_sample(loc + vec3(0.0, 0.0, -step[2]));
+    val2 = shape_sample(loc + vec3(0.0, 0.0, +step[2]));
     N[2] = val1 - val2;
     val = max(max(val1, val2), val);
     return N;
