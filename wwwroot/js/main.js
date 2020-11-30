@@ -102,16 +102,12 @@ export async function run() {
 
     if(shapeVolume && intensityVolume)
     {
-        console.log("Data loaded!");
+        console.info("Data loaded!");
+
         await processData(renderContext, shapeVolume, intensityVolume);
     }
 
     renderCall();
-}
-
-function cameraFollowObject(camera, object, offset) {
-    const cameraPosition = object.position + offset;
-    camera.position.set(offset);
 }
 
 async function loadAsync(loader, path, progressCallback) {
@@ -130,40 +126,21 @@ async function loadAsync(loader, path, progressCallback) {
 
 function fillSceneWithCustomData(scene) {
 
-    const geometry = new BoxGeometry(10, 10, 10);
+    const scales = new Vector3(128, 128, 256);
+    const geometry = new BoxGeometry(1, 1, 1);
+    geometry.scale(128, 128, 256);
 
     const redMaterial = new MeshBasicMaterial( { color: 0xff0000 });
-    const greenMaterial = new MeshBasicMaterial( { color: 0x00ff00 });
-    const blueMaterial = new MeshBasicMaterial( { color: 0x0000ff });
+    redMaterial.wireframe = true;
 
-    const offset = 50;
-    const scale = 50;
+    const boundBox = new Mesh(geometry, redMaterial);
 
-    const xCube = new Mesh(geometry, redMaterial);
-    xCube.position.x += offset;
-    addAxes(xCube);
-    xCube.scale.set(scale, 1, 1);
+    const greenMaterial = new MeshBasicMaterial( { color: 0x11ff00 });
+    const pivotGeometry = new BoxGeometry(10, 10, 10);
+    const pivot = new Mesh(pivotGeometry, greenMaterial);
 
-    const yCube = new Mesh(geometry, greenMaterial);
-    yCube.position.y += offset;
-    addAxes(yCube);
-    yCube.scale.set(1, scale, 1);
-
-    const zCube = new Mesh(geometry, blueMaterial);
-    zCube.position.z += offset;
-    addAxes(zCube);
-    zCube.scale.set(1, 1, scale);
-
-    const group = new Group();
-    group.add(xCube);
-    group.add(yCube);
-    group.add(zCube);
-
-    group.position.x -= 140;
-    group.position.y -= 140;
-    group.position.z -= 140;
-
-    scene.add(group);
+    scene.add(boundBox);
+    scene.add(pivot);
 }
 
 function addAxes(object) {
