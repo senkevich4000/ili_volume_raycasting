@@ -29,8 +29,8 @@ const vec4 diffuse_color = vec4(0.8, 0.2, 0.2, 1.0);
 const vec4 specular_color = vec4(1.0, 1.0, 1.0, 1.0);
 const float shininess = 80.0;
 
-const float uniformal_opacity = 0.3;
-const float uniformal_step_opacity = 0.5;
+const float uniformal_opacity = 0.5;
+const float uniformal_step_opacity = 0.1;
 
 const bool complex_distance_calculation = true;
 const bool debug_mode = false;
@@ -161,7 +161,9 @@ void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
         float intensity_value = intensity_sample(loc);
         vec4 shape_color = apply_shape_colormap(shape_value);
         vec4 intensity_color = apply_intensity_colormap(intensity_value);
+
         shape_color.a *= uniformal_step_opacity;
+
         vec4 current_color = inverseBlend(shape_color, intensity_color);
         vec3 normal_vector = calculate_normal_vector_from_gradient(loc, shape_value, step);
         current_color = add_lighting(current_color, normal_vector, view_ray);
