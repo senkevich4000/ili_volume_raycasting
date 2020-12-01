@@ -1,3 +1,12 @@
+export function Volume(data, xLength, yLength, zLength) {
+  this.data = data;
+  this.xLength = xLength;
+  this.yLength = yLength;
+  this.zLength = zLength;
+
+  return this;
+}
+
 export function createNormalsMapVolume(volume, bounds) {
   const xLength = volume.xLength;
   const yLength = volume.yLength;
@@ -21,12 +30,7 @@ export function createNormalsMapVolume(volume, bounds) {
     }
   }
 
-  return {
-    xLength: xLength,
-    yLength: yLength,
-    zLength: zLength,
-    data: result,
-  };
+  return new Volume(result, xLength, yLength, zLength);
 
   function calculateNormal(input, indexer, xIndex, yIndex, zIndex) {
     const leftXValue = input[indexer.getXClipped(xIndex - 1, yIndex, zIndex)];
@@ -52,7 +56,7 @@ export function createNormalsMapVolume(volume, bounds) {
     return result;
 
     function mapRange(range, length) {
-      return map(range / length, 0, 1, 0, 255);
+      return map(range / length, 0, 1, bounds.min, bounds.max);
     }
   }
 }
@@ -70,12 +74,7 @@ export function createIntensityVolume(xLength, yLength, zLength) {
     }
   }
 
-  return {
-    xLength: xLength,
-    yLength: yLength,
-    zLength: zLength,
-    data: data,
-  };
+  return new Volume(data, xLength, yLength, zLength);
 }
 
 function map(value, minFrom, maxFrom, minTo, maxTo) {
