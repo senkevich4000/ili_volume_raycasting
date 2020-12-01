@@ -22,25 +22,12 @@ import {
 import {OrbitControls} from './node_modules/three/examples/jsm/controls/OrbitControls.js';
 import {NRRDLoader} from './node_modules/three/examples/jsm/loaders/NRRDLoader.js';
 import {ShaderLoader} from './ShaderLoader.js';
+import {
+  createIntensityVolume,
+  createVolumeNormalsMap,
+} from './VolumeUtils.js';
+import {Bounds, RenderStyle, ScaleMode} from './lib.js';
 
-
-// 1. add normals map 3D texture.
-// 2. proportional opacity
-// 3. linear sqrt log
-
-
-const RenderStyle = {
-  raycast: 0,
-  steps_debug: 1,
-};
-Object.freeze(RenderStyle);
-
-const ScaleMode = {
-  linear: 0,
-  sqrt: 1,
-  log: 2,
-};
-Object.freeze(ScaleMode);
 
 export async function run() {
   const width = window.innerWidth;
@@ -155,26 +142,6 @@ function createCamera(width, height, size) {
   return camera;
 }
 
-function createIntensityVolume(xLength, yLength, zLength) {
-  const data = new Float32Array(xLength * yLength * zLength);
-  for (let xIndex = 0; xIndex < xLength; xIndex++) {
-    for (let yIndex = 0; yIndex < yLength; yIndex++) {
-      for (let zIndex = 0; zIndex < zLength; zIndex++) {
-        const index = zIndex + zLength * (yIndex + yLength * xIndex);
-        const value = xIndex / (xLength - 1);
-        data[index] = value;
-      }
-    }
-  }
-
-  return {
-    xLength: xLength,
-    yLength: yLength,
-    zLength: zLength,
-    data: data,
-  };
-}
-
 function createDefaultTextureFromVolume(volume) {
   const texture = new DataTexture3D(
       volume.data,
@@ -188,19 +155,6 @@ function createDefaultTextureFromVolume(volume) {
 
   return texture;
 }
-
-function Bounds(volume) {
-  this.min = volume.data
-      .reduce((left, right) => left < right ? left : right, Number.MAX_VALUE);
-  this.max = volume.data
-      .reduce((left, right) => left > right ? left : right, Number.MIN_VALUE);
-
-  return this;
-}
-
-Bounds.prototype.asVector = function() {
-  return new Vector2(this.min, this.max);
-};
 
 async function processData(renderContext, shapeVolume, intensityVolume) {
   const textureLoader = new TextureLoader();
