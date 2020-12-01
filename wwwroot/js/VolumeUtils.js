@@ -21,35 +21,39 @@ export function createNormalsMapVolume(volume, bounds) {
     }
   }
 
-  return result;
+  return {
+    xLength: xLength,
+    yLength: yLength,
+    zLength: zLength,
+    data: result,
+  };
 
   function calculateNormal(input, indexer, xIndex, yIndex, zIndex) {
-    let leftXValue = input[indexer.getXClipped(xIndex - 1, yIndex, zIndex)];
-    let rightXValue = input[indexer.getXClipped(xIndex + 1, yIndex, zIndex)];
+    const leftXValue = input[indexer.getXClipped(xIndex - 1, yIndex, zIndex)];
+    const rightXValue = input[indexer.getXClipped(xIndex + 1, yIndex, zIndex)];
 
-    let leftYValue = input[indexer.getYClipped(xIndex, yIndex - 1, zIndex)];
-    let rightYValue = input[indexer.getYClipped(xIndex, yIndex + 1, zIndex)];
+    const leftYValue = input[indexer.getYClipped(xIndex, yIndex - 1, zIndex)];
+    const rightYValue = input[indexer.getYClipped(xIndex, yIndex + 1, zIndex)];
 
-    let leftZValue = input[indexer.getZClipped(xIndex, yIndex, zIndex - 1)];
-    let rightZValue = input[indexer.getZClipped(xIndex, yIndex, zIndex + 1)];
-
-    leftXValue = normalize(leftXValue, bounds);
-    leftYValue = normalize(leftYValue, bounds);
-    leftZValue = normalize(leftZValue, bounds);
-
-    rightXValue = normalize(rightXValue, bounds);
-    rightYValue = normalize(rightYValue, bounds);
-    rightZValue = normalize(rightZValue, bounds);
+    const leftZValue = input[indexer.getZClipped(xIndex, yIndex, zIndex - 1)];
+    const rightZValue = input[indexer.getZClipped(xIndex, yIndex, zIndex + 1)];
 
     const xRange = rightXValue - leftXValue;
     const yRange = rightYValue - leftYValue;
     const zRange = rightZValue - leftZValue;
 
+    const vectorLength = Math.sqrt(xRange * xRange + yRange * yRange + zRange * zRange);
+
     const result = new Uint8Array(3);
-    result[0] = xRange;
-    result[1] = yRange;
-    result[2] = zRange;
+    result[0] = mapRange(xRange, vectorLength);
+    result[1] = mapRange(yRange, vectorLength);
+    result[2] = mapRange(zRange, vectorLength);
+
     return result;
+
+    function mapRange(range, length) {
+      return map(range / length, 0, 1, 0, 255);
+    }
   }
 }
 
@@ -74,8 +78,8 @@ export function createIntensityVolume(xLength, yLength, zLength) {
   };
 }
 
-function normalize(value, bounds) {
-  return (value - bounds.min) / (bounds.max - bounds.min);
+function map(value, minFrom, maxFrom, minTo, maxTo) {
+  return minTo + (maxTo - minTo) * ((value - minFrom) / (maxFrom - minFrom));
 }
 
 function Indexer1D(xLength, yLength, zLength) {

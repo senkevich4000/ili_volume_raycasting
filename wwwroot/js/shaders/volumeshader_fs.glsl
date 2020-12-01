@@ -34,8 +34,8 @@ const vec4 specular_color = vec4(1.0, 1.0, 1.0, 1.0);
 const float shininess = 180.0;
 
 const float uniformal_opacity = 1.0;
-const float uniformal_step_opacity = 0.7;
-const float transperancy_limit = 0.02;
+const float uniformal_step_opacity = 1.0;
+const float transperancy_limit = 0.05;
 
 const bool complex_distance_calculation = true;
 const bool debug_mode = false;
@@ -173,13 +173,12 @@ void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
         vec4 shape_color = apply_shape_colormap(shape_value);
         vec4 intensity_color = apply_intensity_colormap(intensity_value);
 
-        //shape_color.a *= uniformal_step_opacity;
-        //shape_color.a *= normalized_value(shape_value, u_shape_bounds);
+        shape_color.a *= normalized_value(shape_value, u_shape_bounds);
         //intensity_color.a *= normalized_value(intensity_value, u_intensity_bounds);
-        shape_color.a *= normalized_value(intensity_value, u_intensity_bounds);
+        //shape_color.a *= normalized_value(intensity_value, u_intensity_bounds);
 
         vec4 current_color = inverseBlend(shape_color, intensity_color);
-        vec3 normal_vector = calculate_normal_vector_from_gradient(loc, step);
+        vec3 normal_vector = normals_sample(loc);
         current_color = add_lighting(current_color, normal_vector, view_ray);
         current_color.a *= normalized_value(shape_value, u_shape_bounds);
         current_color.a *= uniformal_step_opacity;
@@ -188,7 +187,7 @@ void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
         // Advance location deeper into the volume
         loc += step;
     }
-    //final_color = finish_inverse_blend(final_color);
+    final_color = finish_inverse_blend(final_color);
     final_color.a *= uniformal_opacity;
     gl_FragColor = final_color;
 }

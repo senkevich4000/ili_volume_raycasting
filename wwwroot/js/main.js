@@ -198,10 +198,11 @@ async function processData(renderContext, shapeVolume, intensityVolume) {
     console.log('fragment shader loaded!');
   }
 
-  const shapeBounds = new Bounds(shapeVolume);
-  const intensityBounds = new Bounds(intensityVolume);
+  const shapeBounds = Bounds.fromArray(shapeVolume.data);
+  const intensityBounds = Bounds.fromArray(intensityVolume.data);
+  const normalsBounds = new Bounds(0, 255);
 
-  const normalsMapVolume = createNormalsMapVolume(shapeVolume, shapeBounds);
+  const normalsMapVolume = createNormalsMapVolume(intensityVolume, normalsBounds);
 
   const shapeTexture = createDefaultTextureFromVolume(shapeVolume);
   const intensityTexture = createDefaultTextureFromVolume(intensityVolume);

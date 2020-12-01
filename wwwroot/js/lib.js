@@ -1,17 +1,22 @@
 import {Vector2} from './node_modules/three/build/three.module.js';
 
 
-function Bounds(volume) {
-  this.min = volume.data
-      .reduce((left, right) => left < right ? left : right, Number.MAX_VALUE);
-  this.max = volume.data
-      .reduce((left, right) => left > right ? left : right, Number.MIN_VALUE);
+function Bounds(min, max) {
+  this.min = min;
+  this.max = max;
 
   return this;
 }
 
 Bounds.prototype.asVector = function() {
   return new Vector2(this.min, this.max);
+};
+
+Bounds.fromArray = function(data) {
+  const min = data.reduce((left, right) => left < right ? left : right, Number.MAX_VALUE);
+  const max = data.reduce((left, right) => left > right ? left : right, Number.MIN_VALUE);
+
+  return new Bounds(min, max);
 };
 
 const RenderStyle = {
