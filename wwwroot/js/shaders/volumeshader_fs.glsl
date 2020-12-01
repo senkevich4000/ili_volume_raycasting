@@ -14,6 +14,7 @@ uniform vec2 u_intensity_bounds;
 uniform int u_renderstyle;
 uniform float u_renderthreshold;
 uniform vec2 u_clim;
+uniform int scaleMode;
 
 varying vec3 v_position;
 varying vec4 v_nearpos;
@@ -23,14 +24,15 @@ varying vec4 v_farpos;
 const int MAX_STEPS = 887;      // 887 for 512^3, 1774 for 1024^3
 const int REFINEMENT_STEPS = 4;
 
-const float relative_step_size = 1.3;
+const float relative_step_size = 1.0;
 const vec4 ambient_color = vec4(0.2, 0.4, 0.2, 1.0);
 const vec4 diffuse_color = vec4(0.8, 0.2, 0.2, 1.0);
 const vec4 specular_color = vec4(1.0, 1.0, 1.0, 1.0);
-const float shininess = 80.0;
+const float shininess = 180.0;
 
-const float uniformal_opacity = 0.5;
-const float uniformal_step_opacity = 0.1;
+const float uniformal_opacity = 1.0;
+const float uniformal_step_opacity = 0.7;
+const float transperancy_limit = 0.02;
 
 const bool complex_distance_calculation = true;
 const bool debug_mode = false;
@@ -46,12 +48,12 @@ void discard_transparent();
 vec4 apply_shape_colormap(float val);
 vec4 apply_intensity_colormap(float val);
 
-vec3 calculate_normal_vector_from_gradient(vec3 loc, float val, vec3 step);
+vec3 calculate_normal_vector_from_gradient(vec3 loc, vec3 step);
 vec4 add_lighting(vec4 color, vec3 normal_vector, vec3 view_ray);
-float normalized_intensity(float intensity);
+float normalized_value(float intensity, vec2 bounds);
 
 vec4 inverseBlend(vec4 base, vec4 blend);
-vec4 blend(vec4 base, vec4 blend);
+vec4 finish_inverse_blend(vec4 color);
 
 void main() {
     // Normalize clipping plane info
@@ -152,28 +154,32 @@ void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
         if (iter >= nsteps)
             break;
 
-        // get color1 color2
-        // blend them
-        // add light
-
         // Sample from the 3D texture
         float shape_value = shape_sample(loc);
         float intensity_value = intensity_sample(loc);
+
+        // calculate normalized values
+
+        // pass normalized values
         vec4 shape_color = apply_shape_colormap(shape_value);
         vec4 intensity_color = apply_intensity_colormap(intensity_value);
 
-        shape_color.a *= uniformal_step_opacity;
+        //shape_color.a *= uniformal_step_opacity;
+        //shape_color.a *= normalized_value(shape_value, u_shape_bounds);
+        //intensity_color.a *= normalized_value(intensity_value, u_intensity_bounds);
+        shape_color.a *= normalized_value(intensity_value, u_intensity_bounds);
 
         vec4 current_color = inverseBlend(shape_color, intensity_color);
-        vec3 normal_vector = calculate_normal_vector_from_gradient(loc, shape_value, step);
+        vec3 normal_vector = calculate_normal_vector_from_gradient(loc, step);
         current_color = add_lighting(current_color, normal_vector, view_ray);
-        //current_color.a *= uniformal_step_opacity;
-        current_color.a *= normalized_intensity(shape_value);
+        current_color.a *= normalized_value(shape_value, u_shape_bounds);
+        current_color.a *= uniformal_step_opacity;
         final_color = inverseBlend(final_color, current_color);
 
         // Advance location deeper into the volume
         loc += step;
     }
+    //final_color = finish_inverse_blend(final_color);
     final_color.a *= uniformal_opacity;
     gl_FragColor = final_color;
 }
@@ -182,30 +188,35 @@ vec4 inverseBlend(vec4 base, vec4 blend) {
     return base + (1.0 - base.a) * vec4(blend.rgb * blend.a, blend.a);
 }
 
-vec4 blend(vec4 base, vec4 blend) {
-    float opacity = blend.a;
-    return blend * opacity + base * (1.0 - opacity);
+vec4 finish_inverse_blend(vec4 color) {
+    if (color.a == 0.0) {
+        return vec4(0.0, 0.0, 0.0, 0.0);
+    }
+    else {
+        return vec4(color.rgb / color.a, color.a);
+    }
 }
 
-float normalized_intensity(float intensity) {
-    return (intensity - u_shape_bounds.x) / (u_shape_bounds.y - u_shape_bounds.x);
+float normalized_value(float value, vec2 bounds) {
+    return (value - bounds.x) / (bounds.y - bounds.x);
 }
 
-vec3 calculate_normal_vector_from_gradient(vec3 loc, float val, vec3 step) {
+vec3 calculate_normal_vector_from_gradient(vec3 loc, vec3 step) {
     vec3 N;
     float val1, val2;
+
     val1 = shape_sample(loc + vec3(-step[0], 0.0, 0.0));
     val2 = shape_sample(loc + vec3(+step[0], 0.0, 0.0));
     N[0] = val1 - val2;
-    val = max(max(val1, val2), val);
+
     val1 = shape_sample(loc + vec3(0.0, -step[1], 0.0));
     val2 = shape_sample(loc + vec3(0.0, +step[1], 0.0));
     N[1] = val1 - val2;
-    val = max(max(val1, val2), val);
+
     val1 = shape_sample(loc + vec3(0.0, 0.0, -step[2]));
     val2 = shape_sample(loc + vec3(0.0, 0.0, +step[2]));
     N[2] = val1 - val2;
-    val = max(max(val1, val2), val);
+
     return N;
 }
 
@@ -263,7 +274,7 @@ void debug_steps(int nsteps, float range) {
 }
 
 void discard_transparent() {
-    if (gl_FragColor.a < 0.05)
+    if (gl_FragColor.a < transperancy_limit)
     {
         if(debug_mode)
         {

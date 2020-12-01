@@ -9,16 +9,24 @@ import {
   FloatType,
   LinearFilter,
   Mesh,
-  MeshBasicMaterial, OrthographicCamera, Scene,
+  MeshBasicMaterial,
+  OrthographicCamera,
+  Scene,
   ShaderMaterial,
   TextureLoader,
   Vector2,
   Vector3,
   WebGLRenderer,
-} from './node_modules/three/build/three.module.min.js';
+  RedFormat,
+} from './node_modules/three/build/three.module.js';
 import {OrbitControls} from './node_modules/three/examples/jsm/controls/OrbitControls.js';
 import {NRRDLoader} from './node_modules/three/examples/jsm/loaders/NRRDLoader.js';
 import {ShaderLoader} from './ShaderLoader.js';
+
+
+// 1. add normals map 3D texture.
+// 2. proportional opacity
+// 3. linear sqrt log
 
 
 const RenderStyle = {
@@ -26,6 +34,13 @@ const RenderStyle = {
   steps_debug: 1,
 };
 Object.freeze(RenderStyle);
+
+const ScaleMode = {
+  linear: 0,
+  sqrt: 1,
+  log: 2,
+};
+Object.freeze(ScaleMode);
 
 export async function run() {
   const width = window.innerWidth;
@@ -35,8 +50,8 @@ export async function run() {
   scene.background = new Color(0xff0000);
 
   const viewSize = 256;
-  const camera = createCamera(scene, width, height / 2, viewSize);
-  const observerCamera = createCamera(scene, width, height / 2, viewSize * 2);
+  const camera = createCamera(width, height / 2, viewSize);
+  const observerCamera = createCamera(width, height / 2, viewSize * 2);
   observerCamera.near = 1;
   observerCamera.far = 4000;
   observerCamera.position.set(100, 100, 0);
@@ -45,7 +60,7 @@ export async function run() {
   const cameraHelper = new CameraHelper(camera);
   scene.add(cameraHelper);
 
-  fillSceneWithCustomData(scene);
+  fillSceneWithCustomData(scene, 128, 128, 256);
 
   const view = new View();
   const renderer = new WebGLRenderer({canvas: view.canvas});
@@ -60,7 +75,7 @@ export async function run() {
       renderer);
   const renderCall = render.bind(renderContext);
 
-  createOrbitControls( camera, view.bottomElement, renderCall);
+  createOrbitControls(camera, view.bottomElement, renderCall);
   createOrbitControls(observerCamera, view.topElement, renderCall);
 
   const dataLoader = new NRRDLoader();
@@ -77,7 +92,6 @@ export async function run() {
 
   if (shapeVolume && intensityVolume) {
     console.info('Data loaded!');
-
     await processData(renderContext, shapeVolume, intensityVolume);
   }
 
@@ -100,6 +114,7 @@ async function loadAsync(loader, path, progressCallback) {
 
 function fillSceneWithCustomData(scene, xLength, yLength, zLength) {
   const geometry = new BoxGeometry(1, 1, 1);
+  geometry.name = 'Bounds';
   geometry.scale(xLength, yLength, zLength);
 
   const redMaterial = new MeshBasicMaterial( {color: 0xff0000});
@@ -109,6 +124,7 @@ function fillSceneWithCustomData(scene, xLength, yLength, zLength) {
 
   const greenMaterial = new MeshBasicMaterial( {color: 0x11ff00});
   const pivotGeometry = new BoxGeometry(10, 10, 10);
+  pivotGeometry.name = 'Pivot';
   const pivot = new Mesh(pivotGeometry, greenMaterial);
   addAxes(pivot);
 
@@ -175,9 +191,9 @@ function createDefaultTextureFromVolume(volume) {
 
 function Bounds(volume) {
   this.min = volume.data
-      .reduce((left, right) => left < right ? left : right);
+      .reduce((left, right) => left < right ? left : right, Number.MAX_VALUE);
   this.max = volume.data
-      .reduce((left, right) => left > right ? left : right);
+      .reduce((left, right) => left > right ? left : right, Number.MIN_VALUE);
 
   return this;
 }
@@ -254,6 +270,7 @@ async function processData(renderContext, shapeVolume, intensityVolume) {
     u_renderthreshold: {value: 0.15},
     u_clim: {value: new Vector2(0, 1 )},
 
+    scaleMode: {value: ScaleMode.linear},
   };
 
   const material = new ShaderMaterial({
@@ -264,6 +281,7 @@ async function processData(renderContext, shapeVolume, intensityVolume) {
   });
 
   const geometry = new BoxBufferGeometry(1, 1, 1);
+  geometry.name = 'Volume';
   const translate = 0.5;
   geometry.translate(translate, translate, translate);
   geometry.scale(shapeSize.x, shapeSize.y, shapeSize.z);
