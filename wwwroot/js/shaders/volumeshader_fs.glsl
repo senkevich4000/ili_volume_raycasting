@@ -11,6 +11,9 @@ uniform sampler3D u_intensity_data;
 uniform sampler2D u_intensity_cmdata;
 uniform vec2 u_intensity_bounds;
 
+uniform vec3 u_normals_size;
+uniform sampler3D u_normals_data;
+
 uniform int u_renderstyle;
 uniform float u_renderthreshold;
 uniform vec2 u_clim;
@@ -41,6 +44,8 @@ void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray);
 
 float shape_sample(vec3 texcoords);
 float intensity_sample(vec3 texcoords);
+vec3 normals_sample(vec3 texcoords);
+
 float calculate_distance(vec3 nearpos, vec3 farpos, vec3 view_ray);
 void debug_steps(int nsteps, float range);
 void discard_transparent();
@@ -107,6 +112,10 @@ float shape_sample(vec3 texcoords) {
 float intensity_sample(vec3 texcoords) {
     // Sample float value from a 3D texture. Assumes intensity data.
     return texture(u_intensity_data, texcoords.xyz).r;
+}
+
+vec3 normals_sample(vec3 texcoords) {
+    return texture(u_normals_data, texcoords.xyz).rgb;
 }
 
 float calculate_distance(vec3 nearpos, vec3 farpos, vec3 view_ray) {

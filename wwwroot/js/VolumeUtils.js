@@ -1,41 +1,37 @@
-export function generateVolume(indexer, valueCalculator) {
-  const xLength = indexer.xLength;
-  const yLength = indexer.yLength;
-  const zLength = indexer.zLength;
+export function createNormalsMapVolume(volume, bounds) {
+  const xLength = volume.xLength;
+  const yLength = volume.yLength;
+  const zLength = volume.zLength;
 
-  const data = new Float32Array(xLength * yLength * zLength);
-  for (let xIndex = 0; xIndex < xLength; xIndex++) {
-    for (let yIndex = 0; yIndex < yLength; yIndex++) {
-      for (let zIndex = 0; zIndex < zLength; zIndex++) {
-        const value = valueCalculator(indexer, xIndex, yIndex, zIndex);
-        data[indexer.get(xIndex, yIndex, zIndex)] = value;
+  const inputIndexer = new Indexer1D(xLength, yLength, zLength);
+  const input = volume.data;
+
+  const resultIndexer = new Indexer1D(xLength, yLength, zLength * 3);
+  const result = new Uint8Array(resultIndexer.length);
+
+  for (let xIndex = 0; xIndex < xLength; ++xIndex) {
+    for (let yIndex = 0; yIndex < yLength; ++yIndex) {
+      for (let zIndex = 0; zIndex < zLength; ++zIndex) {
+        const values = calculateNormal(input, inputIndexer, xIndex, yIndex, zIndex);
+        const resultIndex = resultIndexer.get(xIndex, yIndex, zIndex * 3);
+        result[resultIndex] = values[0];
+        result[resultIndex + 1] = values[1];
+        result[resultIndex + 2] = values[2];
       }
     }
   }
 
-  return {
-    xLength: xLength,
-    yLength: yLength,
-    zLength: zLength,
-    data: data,
-  };
-}
+  return result;
 
-export function createVolumeNormalsMap(volume, bounds) {
-  const data = volume.data;
-  const indexer = new Indexer1D(volume.xLength, volume.yLength, volume.zLength);
+  function calculateNormal(input, indexer, xIndex, yIndex, zIndex) {
+    let leftXValue = input[indexer.getXClipped(xIndex - 1, yIndex, zIndex)];
+    let rightXValue = input[indexer.getXClipped(xIndex + 1, yIndex, zIndex)];
 
-  return generateVolume(indexer, normalsCalculator);
+    let leftYValue = input[indexer.getYClipped(xIndex, yIndex - 1, zIndex)];
+    let rightYValue = input[indexer.getYClipped(xIndex, yIndex + 1, zIndex)];
 
-  function normalsCalculator(xIndex, yIndex, zIndex) {
-    const leftXValue = data[indexer.getXClipped(xIndex - 1, yIndex, zIndex)];
-    const rightXValue = data[indexer.getXClipped(xIndex + 1, yIndex, zIndex)];
-
-    const leftYValue = data[indexer.getYClipped(xIndex, yIndex - 1, zIndex)];
-    const rightYValue = data[indexer.getYClipped(xIndex, yIndex + 1, zIndex)];
-
-    const leftZValue = data[indexer.getZClipped(xIndex, yIndex, zIndex - 1)];
-    const rightZValue = data[indexer.getZClipped(xIndex, yIndex, zIndex + 1)];
+    let leftZValue = input[indexer.getZClipped(xIndex, yIndex, zIndex - 1)];
+    let rightZValue = input[indexer.getZClipped(xIndex, yIndex, zIndex + 1)];
 
     leftXValue = normalize(leftXValue, bounds);
     leftYValue = normalize(leftYValue, bounds);
@@ -59,11 +55,23 @@ export function createVolumeNormalsMap(volume, bounds) {
 
 export function createIntensityVolume(xLength, yLength, zLength) {
   const indexer = new Indexer1D(xLength, yLength, zLength);
-  return generateVolume(indexer, intensityCalculator);
 
-  function intensityCalculator(_indxer, xIndex, _yIndex, _zIndex) {
-    return xIndex / (xLength - 1);
+  const data = new Float32Array(xLength * yLength * zLength);
+  for (let xIndex = 0; xIndex < xLength; xIndex++) {
+    for (let yIndex = 0; yIndex < yLength; yIndex++) {
+      for (let zIndex = 0; zIndex < zLength; zIndex++) {
+        const value = xIndex / (xLength - 1);
+        data[indexer.get(xIndex, yIndex, zIndex)] = value;
+      }
+    }
   }
+
+  return {
+    xLength: xLength,
+    yLength: yLength,
+    zLength: zLength,
+    data: data,
+  };
 }
 
 function normalize(value, bounds) {
@@ -74,6 +82,7 @@ function Indexer1D(xLength, yLength, zLength) {
   this.xLength = xLength;
   this.yLength = yLength;
   this.zLength = zLength;
+  this.length = xLength * yLength * zLength;
 }
 
 Indexer1D.prototype.get = function(xIndex, yIndex, zIndex) {

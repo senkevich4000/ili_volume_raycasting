@@ -7,6 +7,7 @@ import {
   Color,
   DataTexture3D,
   FloatType,
+  UnsignedByteType,
   LinearFilter,
   Mesh,
   MeshBasicMaterial,
@@ -18,13 +19,14 @@ import {
   Vector3,
   WebGLRenderer,
   RedFormat,
+  RGBFormat,
 } from './node_modules/three/build/three.module.js';
 import {OrbitControls} from './node_modules/three/examples/jsm/controls/OrbitControls.js';
 import {NRRDLoader} from './node_modules/three/examples/jsm/loaders/NRRDLoader.js';
 import {ShaderLoader} from './ShaderLoader.js';
 import {
   createIntensityVolume,
-  createVolumeNormalsMap,
+  createNormalsMapVolume,
 } from './VolumeUtils.js';
 import {Bounds, RenderStyle, ScaleMode} from './lib.js';
 
@@ -143,13 +145,17 @@ function createCamera(width, height, size) {
 }
 
 function createDefaultTextureFromVolume(volume) {
+  return createTextureFromVolume(volume, FloatType, RedFormat);
+}
+
+function createTextureFromVolume(volume, type, format) {
   const texture = new DataTexture3D(
       volume.data,
       volume.xLength,
       volume.yLength,
       volume.zLength);
-  texture.type = FloatType;
-  texture.format = RedFormat;
+  texture.type = type;
+  texture.format = format;
   texture.minFilter = texture.magFilter = LinearFilter;
   texture.unpackAlignment = 1;
 
@@ -195,8 +201,14 @@ async function processData(renderContext, shapeVolume, intensityVolume) {
   const shapeBounds = new Bounds(shapeVolume);
   const intensityBounds = new Bounds(intensityVolume);
 
+  const normalsMapVolume = createNormalsMapVolume(shapeVolume, shapeBounds);
+
   const shapeTexture = createDefaultTextureFromVolume(shapeVolume);
   const intensityTexture = createDefaultTextureFromVolume(intensityVolume);
+  const normalsTexture = createTextureFromVolume(
+      normalsMapVolume,
+      UnsignedByteType,
+      RGBFormat);
 
   const shapeSize = new Vector3(
       shapeVolume.xLength,
@@ -206,6 +218,7 @@ async function processData(renderContext, shapeVolume, intensityVolume) {
       intensityVolume.xLength,
       intensityVolume.yLength,
       intensityVolume.zLength);
+  const normalsSize = shapeSize;
 
   // add shading (true/false) as int.
   const uniforms = {
@@ -219,6 +232,9 @@ async function processData(renderContext, shapeVolume, intensityVolume) {
     u_intensity_data: {value: intensityTexture},
     u_intensity_cmdata: {value: viridis},
     u_intensity_bounds: {value: intensityBounds.asVector()},
+
+    u_normals_size: {value: normalsSize},
+    u_normals_data: {value: normalsTexture},
 
     u_renderstyle: {value: RenderStyle.raycast},
     u_renderthreshold: {value: 0.15},
