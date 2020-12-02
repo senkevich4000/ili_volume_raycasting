@@ -5,10 +5,6 @@ const port = 5000;
 
 app.use(express.static('public'));
 
-app.get('/', (req, res) => {
-  res.send('hello');
-});
-
 app.listen(port, () => {
   console.log('Server connected at: ', port);
 });
