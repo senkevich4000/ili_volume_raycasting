@@ -140,14 +140,12 @@ float calculate_distance(vec3 nearpos, vec3 farpos, vec3 view_ray) {
     return distance;
 }
 
-vec4 apply_shape_colormap(float val) {
-    val = (val - u_clim[0]) / (u_clim[1] - u_clim[0]);
-    return texture2D(u_shape_cmdata, vec2(val, 0.5));
+vec4 apply_shape_colormap(float normalized_value) {
+    return texture2D(u_shape_cmdata, vec2(normalized_value, 0.5));
 }
 
-vec4 apply_intensity_colormap(float val) {
-    val = (val - u_clim[0]) / (u_clim[1] - u_clim[0]);
-    return texture2D(u_intensity_cmdata, vec2(val, 0.5));
+vec4 apply_intensity_colormap(float normalized_value) {
+    return texture2D(u_intensity_cmdata, vec2(normalized_value, 0.5));
 }
 
 void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
@@ -167,17 +165,21 @@ void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
         float intensity_value = intensity_sample(loc);
 
         // calculate normalized values
+        float normalized_shape_value = normalized_value(shape_value, u_shape_bounds);
+        float normalized_intensity_value = normalized_value(
+            intensity_value, 
+            u_intensity_bounds);
 
         // pass normalized values
-        vec4 shape_color = apply_shape_colormap(shape_value);
-        vec4 intensity_color = apply_intensity_colormap(intensity_value);
+        vec4 shape_color = apply_shape_colormap(normalized_shape_value);
+        vec4 intensity_color = apply_intensity_colormap(normalized_intensity_value);
 
-        shape_color.a *= normalized_value(shape_value, u_shape_bounds);
+        shape_color.a *= normalized_shape_value;
 
         vec4 current_color = inverseBlend(shape_color, intensity_color);
         vec3 normal_vector = normals_sample(loc);
         current_color = add_lighting(current_color, normal_vector, view_ray);
-        current_color.a *= normalized_value(shape_value, u_shape_bounds);
+        current_color.a *= normalized_shape_value;
         current_color.a *= uniformal_step_opacity;
         final_color = inverseBlend(final_color, current_color);
 

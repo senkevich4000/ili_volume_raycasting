@@ -238,7 +238,7 @@ async function processData(renderContext, shapeVolume, intensityVolume) {
     u_renderthreshold: {value: 0.15},
     u_clim: {value: new Vector2(0, 1 )},
 
-    u_scalemode: {value: ScaleMode.log},
+    u_scalemode: {value: ScaleMode.linear},
   };
 
   const material = new ShaderMaterial({
