@@ -2,9 +2,8 @@
 
 Demo project with raycasting implementation.
 
-Web server: ASP.NET 5
+Web server: express.js
 
-To run the server use
-```bash
-dotnet run
-```
+Install: ```bash npm install``` or ```bash make install```
+
+To run the server use ```bash node index.js```

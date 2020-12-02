@@ -4,6 +4,7 @@
   "description": "ili volume raycasting",
   "main": "index.js",
   "scripts": {
+    "preinstall": "npm install --prefix ./public/js three",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -20,8 +21,7 @@
   },
   "homepage": "https://github.com/senkevich4000/ili_volume_raycasting#readme",
   "dependencies": {
-    "express": "^4.17.1",
-    "three": "public/js/npm_modules/three"
+    "express": "^4.17.1"
   },
   "devDependencies": {
     "eslint": "^7.14.0",
