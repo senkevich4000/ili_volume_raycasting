@@ -24,10 +24,7 @@ import {
 import {OrbitControls} from './node_modules/three/examples/jsm/controls/OrbitControls.js';
 import {NRRDLoader} from './node_modules/three/examples/jsm/loaders/NRRDLoader.js';
 import {ShaderLoader} from './ShaderLoader.js';
-import {
-  createIntensityVolume,
-  createNormalsMapVolume,
-} from './VolumeUtils.js';
+import {createIntensityVolume, createNormalsMapVolume} from './VolumeUtils.js';
 import {Bounds, RenderStyle, ScaleMode} from './lib.js';
 
 
