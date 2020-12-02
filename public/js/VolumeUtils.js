@@ -32,6 +32,7 @@ export function createNormalsMapVolume(volume, bounds) {
 
   return new Volume(result, xLength, yLength, zLength);
 
+  // add output parameter (Uint8Array) and offset to write into output.
   function calculateNormal(input, indexer, xIndex, yIndex, zIndex) {
     const leftXValue = input[indexer.getXClipped(xIndex - 1, yIndex, zIndex)];
     const rightXValue = input[indexer.getXClipped(xIndex + 1, yIndex, zIndex)];

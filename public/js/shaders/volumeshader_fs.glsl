@@ -28,6 +28,7 @@ const int MAX_STEPS = 887;      // 887 for 512^3, 1774 for 1024^3
 const int REFINEMENT_STEPS = 4;
 
 const float relative_step_size = 1.0;
+
 const vec4 ambient_color = vec4(0.2, 0.4, 0.2, 1.0);
 const vec4 diffuse_color = vec4(0.8, 0.2, 0.2, 1.0);
 const vec4 specular_color = vec4(1.0, 1.0, 1.0, 1.0);
@@ -55,6 +56,7 @@ vec4 apply_intensity_colormap(float val);
 
 vec4 add_lighting(vec4 color, vec3 normal_vector, vec3 view_ray);
 float normalized_value(float intensity, vec2 bounds);
+float scale(float value);
 
 vec4 inverseBlend(vec4 base, vec4 blend);
 vec4 finish_inverse_blend(vec4 color);
@@ -114,7 +116,7 @@ float intensity_sample(vec3 texcoords) {
 }
 
 vec3 normals_sample(vec3 texcoords) {
-    return texture(u_normals_data, texcoords.xyz).rgb;
+    return 2.0 * (texture(u_normals_data, texcoords.xyz).rgb - vec3(0.5));
 }
 
 float calculate_distance(vec3 nearpos, vec3 farpos, vec3 view_ray) {
@@ -205,14 +207,16 @@ vec4 finish_inverse_blend(vec4 color) {
 }
 
 float normalized_value(float value, vec2 bounds) {
-    if (u_scalemode == 0) {
-        return (value - bounds.x) / (bounds.y - bounds.x);
-    }
+    // scale all values and calculate normalized value with it.
+    return scale((value - bounds.x) / (bounds.y - bounds.x));
+}
+
+float scale(float value) {
     if(u_scalemode == 1) {
-        return (value - bounds.x) / sqrt(bounds.y - bounds.x);
+        return sqrt(value);
     }
     if (u_scalemode == 2) {
-        return (value - bounds.x) / log(bounds.y - bounds.x);
+        return log(value);
     }
     return value;
 }
@@ -223,16 +227,14 @@ vec4 add_lighting(vec4 color, vec3 normal_vector, vec3 view_ray) {
     // View direction
     vec3 V = normalize(view_ray);
 
-    vec3 N = normal_vector;
+    float gm = length(normal_vector); // gradient magnitude
+    vec3 N = normalize(normal_vector);
 
-    float gm = length(N); // gradient magnitude
-    N = normalize(N);
 
     // Flip normal so it points towards viewer
     float Nselect = float(dot(N, V) > 0.0);
-    N = (2.0 * Nselect - 1.0) * N; // == Nselect * N - (1.0-Nselect)*N;
+    N = (2.0 * Nselect - 1.0) * N;
 
-    // Init colors
     vec4 ambient_color = vec4(0.0, 0.0, 0.0, 0.0);
     vec4 diffuse_color = vec4(0.0, 0.0, 0.0, 0.0);
     vec4 specular_color = vec4(0.0, 0.0, 0.0, 0.0);
@@ -240,9 +242,8 @@ vec4 add_lighting(vec4 color, vec3 normal_vector, vec3 view_ray) {
     // note: could allow multiple lights
     for (int i=0; i<1; i++) {
         // Get light direction (make sure to prevent zero devision)
-        vec3 L = normalize(view_ray);   //lightDirs[i];
-        float lightEnabled = float( length(L) > 0.0 );
-        L = normalize(L + (1.0 - lightEnabled));
+        float lightEnabled = float(length(V) > 0.0);
+        vec3 L = normalize(V + (1.0 - lightEnabled));
 
         // Calculate lighting properties
         float lambertTerm = clamp(dot(N, L), 0.0, 1.0);
