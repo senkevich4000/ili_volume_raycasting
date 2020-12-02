@@ -4,6 +4,6 @@ Demo project with raycasting implementation.
 
 Web server: express.js
 
-Install: ```bash npm install``` or ```bash make install```
+Install: ```npm install``` or ```make install```
 
-To run the server use ```bash node index.js```
+To run the server use ```node index.js```
