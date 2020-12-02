@@ -17,7 +17,7 @@ uniform sampler3D u_normals_data;
 uniform int u_renderstyle;
 uniform float u_renderthreshold;
 uniform vec2 u_clim;
-uniform int scaleMode;
+uniform int u_scalemode;
 
 varying vec3 v_position;
 varying vec4 v_nearpos;
@@ -53,7 +53,6 @@ void discard_transparent();
 vec4 apply_shape_colormap(float val);
 vec4 apply_intensity_colormap(float val);
 
-vec3 calculate_normal_vector_from_gradient(vec3 loc, vec3 step);
 vec4 add_lighting(vec4 color, vec3 normal_vector, vec3 view_ray);
 float normalized_value(float intensity, vec2 bounds);
 
@@ -174,8 +173,6 @@ void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
         vec4 intensity_color = apply_intensity_colormap(intensity_value);
 
         shape_color.a *= normalized_value(shape_value, u_shape_bounds);
-        //intensity_color.a *= normalized_value(intensity_value, u_intensity_bounds);
-        //shape_color.a *= normalized_value(intensity_value, u_intensity_bounds);
 
         vec4 current_color = inverseBlend(shape_color, intensity_color);
         vec3 normal_vector = normals_sample(loc);
@@ -206,26 +203,16 @@ vec4 finish_inverse_blend(vec4 color) {
 }
 
 float normalized_value(float value, vec2 bounds) {
-    return (value - bounds.x) / (bounds.y - bounds.x);
-}
-
-vec3 calculate_normal_vector_from_gradient(vec3 loc, vec3 step) {
-    vec3 N;
-    float val1, val2;
-
-    val1 = shape_sample(loc + vec3(-step[0], 0.0, 0.0));
-    val2 = shape_sample(loc + vec3(+step[0], 0.0, 0.0));
-    N[0] = val1 - val2;
-
-    val1 = shape_sample(loc + vec3(0.0, -step[1], 0.0));
-    val2 = shape_sample(loc + vec3(0.0, +step[1], 0.0));
-    N[1] = val1 - val2;
-
-    val1 = shape_sample(loc + vec3(0.0, 0.0, -step[2]));
-    val2 = shape_sample(loc + vec3(0.0, 0.0, +step[2]));
-    N[2] = val1 - val2;
-
-    return N;
+    if (u_scalemode == 0) {
+        return (value - bounds.x) / (bounds.y - bounds.x);
+    }
+    if(u_scalemode == 1) {
+        return (value - bounds.x) / sqrt(bounds.y - bounds.x);
+    }
+    if (u_scalemode == 2) {
+        return (value - bounds.x) / log(bounds.y - bounds.x);
+    }
+    return value;
 }
 
 vec4 add_lighting(vec4 color, vec3 normal_vector, vec3 view_ray) {
