@@ -1,4 +1,4 @@
-export function Volume(data, xLength, yLength, zLength) {
+function Volume(data, xLength, yLength, zLength) {
   this.data = data;
   this.xLength = xLength;
   this.yLength = yLength;
@@ -7,7 +7,7 @@ export function Volume(data, xLength, yLength, zLength) {
   return this;
 }
 
-export function createNormalsMapVolume(volume, bounds) {
+function createNormalsMapVolume(volume, bounds) {
   const xLength = volume.xLength;
   const yLength = volume.yLength;
   const zLength = volume.zLength;
@@ -62,7 +62,7 @@ export function createNormalsMapVolume(volume, bounds) {
   }
 }
 
-export function createIntensityVolume(xLength, yLength, zLength) {
+function createIntensityVolume(xLength, yLength, zLength) {
   const indexer = new Indexer1D(xLength, yLength, zLength);
 
   const data = new Float32Array(xLength * yLength * zLength);
@@ -123,3 +123,5 @@ Indexer1D.prototype.getZClipped = function(xIndex, yIndex, zIndex) {
   }
   return this.get(xIndex, yIndex, zIndex);
 };
+
+export {Volume, createNormalsMapVolume, createIntensityVolume};
