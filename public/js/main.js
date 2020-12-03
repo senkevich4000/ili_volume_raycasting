@@ -199,7 +199,7 @@ async function processData(renderContext, shapeVolume, intensityVolume) {
   const intensityBounds = Bounds.fromArray(intensityVolume.data);
   const normalsBounds = new Bounds(0, 255);
 
-  const normalsMapVolume = createNormalsMapVolume(intensityVolume, normalsBounds);
+  const normalsMapVolume = createNormalsMapVolume(shapeVolume, normalsBounds);
 
   const shapeTexture = createDefaultTextureFromVolume(shapeVolume);
   const intensityTexture = createDefaultTextureFromVolume(intensityVolume);

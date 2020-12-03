@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "preinstall": "npm install --prefix ./public/js three",
-    "test": "jest"
+    "test": "jest --clearCache && jest"
   },
   "repository": {
     "type": "git",
@@ -25,6 +25,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.12.9",
+    "@babel/plugin-transform-modules-commonjs": "^7.12.1",
     "@babel/preset-env": "^7.12.7",
     "babel-jest": "^26.6.3",
     "eslint": "^7.14.0",
