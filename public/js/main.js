@@ -40,7 +40,7 @@ export async function run() {
   const observerCamera = createCamera(width, height / 2, viewSize * 2);
   observerCamera.near = 1;
   observerCamera.far = 4000;
-  observerCamera.position.set(100, 100, 0);
+  observerCamera.position.set(100, 0, 0);
   observerCamera.lookAt(0, 0, 0);
 
   const cameraHelper = new CameraHelper(camera);

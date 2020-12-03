@@ -34,8 +34,8 @@ const vec4 diffuse_color = vec4(0.8, 0.2, 0.2, 1.0);
 const vec4 specular_color = vec4(1.0, 1.0, 1.0, 1.0);
 const float shininess = 180.0;
 
-const float uniformal_opacity = 1.0;
-const float uniformal_step_opacity = 1.0;
+const float uniformal_opacity = 0.99;
+const float uniformal_step_opacity = 0.3;
 const float transperancy_limit = 0.05;
 
 const bool complex_distance_calculation = true;
@@ -172,16 +172,16 @@ void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
             intensity_value, 
             u_intensity_bounds);
 
-        // pass normalized values
         vec4 shape_color = apply_shape_colormap(normalized_shape_value);
         vec4 intensity_color = apply_intensity_colormap(normalized_intensity_value);
 
         shape_color.a *= normalized_shape_value;
+        intensity_color.a *= normalized_shape_value;
+        intensity_color.rgb *= normalized_shape_value * 10.0;
 
-        vec4 current_color = inverseBlend(shape_color, intensity_color);
+        vec4 current_color = inverseBlend(intensity_color, shape_color);
         vec3 normal_vector = normals_sample(loc);
         current_color = add_lighting(current_color, normal_vector, view_ray);
-        current_color.a *= normalized_shape_value;
         current_color.a *= uniformal_step_opacity;
         final_color = inverseBlend(final_color, current_color);
 
@@ -208,15 +208,20 @@ vec4 finish_inverse_blend(vec4 color) {
 
 float normalized_value(float value, vec2 bounds) {
     // scale all values and calculate normalized value with it.
-    return scale((value - bounds.x) / (bounds.y - bounds.x));
+    float scaled_value = scale(value);
+    float scaled_min = scale(bounds.x);
+    float scaled_max = scale(bounds.y);
+    return (scaled_value - scaled_min) / (scaled_max - scaled_min);
 }
 
 float scale(float value) {
     if(u_scalemode == 1) {
+        value = max(0.0, value);
         return sqrt(value);
     }
     if (u_scalemode == 2) {
-        return log(value);
+        value = max(0.0001, value);
+        return log(value) / log(10.0);
     }
     return value;
 }
