@@ -21,19 +21,22 @@ function createNormalsMapVolume(volume, bounds) {
   for (let xIndex = 0; xIndex < xLength; ++xIndex) {
     for (let yIndex = 0; yIndex < yLength; ++yIndex) {
       for (let zIndex = 0; zIndex < zLength; ++zIndex) {
-        const values = calculateNormal(input, inputIndexer, xIndex, yIndex, zIndex);
         const resultIndex = resultIndexer.get(xIndex, yIndex, zIndex * 3);
-        result[resultIndex] = values[0];
-        result[resultIndex + 1] = values[1];
-        result[resultIndex + 2] = values[2];
+        calculateNormal(
+            input,
+            inputIndexer,
+            xIndex,
+            yIndex,
+            zIndex,
+            result,
+            resultIndex);
       }
     }
   }
 
   return new Volume(result, xLength, yLength, zLength);
 
-  // add output parameter (Uint8Array) and offset to write into output.
-  function calculateNormal(input, indexer, xIndex, yIndex, zIndex) {
+  function calculateNormal(input, indexer, xIndex, yIndex, zIndex, output, outputIndex) {
     const leftXValue = input[indexer.getXClipped(xIndex - 1, yIndex, zIndex)];
     const rightXValue = input[indexer.getXClipped(xIndex + 1, yIndex, zIndex)];
 
@@ -49,14 +52,11 @@ function createNormalsMapVolume(volume, bounds) {
 
     const vectorLength = Math.sqrt(xRange * xRange + yRange * yRange + zRange * zRange);
 
-    const result = new Uint8Array(3);
-    result[0] = mapRange(xRange, vectorLength);
-    result[1] = mapRange(yRange, vectorLength);
-    result[2] = mapRange(zRange, vectorLength);
+    output[outputIndex] = mapRange(xRange, vectorLength, bounds);
+    output[outputIndex + 1] = mapRange(yRange, vectorLength, bounds);
+    output[outputIndex + 2] = mapRange(zRange, vectorLength, bounds);
 
-    return result;
-
-    function mapRange(range, length) {
+    function mapRange(range, length, bounds) {
       return map(range / length, 0, 1, bounds.min, bounds.max);
     }
   }

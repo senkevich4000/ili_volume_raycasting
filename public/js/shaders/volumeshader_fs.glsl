@@ -175,11 +175,12 @@ void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
         vec4 shape_color = apply_shape_colormap(normalized_shape_value);
         vec4 intensity_color = apply_intensity_colormap(normalized_intensity_value);
 
-        shape_color.a *= normalized_shape_value;
+        //shape_color.a *= normalized_shape_value;
         intensity_color.a *= normalized_shape_value;
         intensity_color.rgb *= normalized_shape_value * 10.0;
 
-        vec4 current_color = inverseBlend(intensity_color, shape_color);
+        //vec4 current_color = inverseBlend(intensity_color, shape_color);
+        vec4 current_color = intensity_color;
         vec3 normal_vector = normals_sample(loc);
         current_color = add_lighting(current_color, normal_vector, view_ray);
         current_color.a *= uniformal_step_opacity;
