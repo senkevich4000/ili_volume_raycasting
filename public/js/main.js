@@ -26,6 +26,16 @@ import {NRRDLoader} from './node_modules/three/examples/jsm/loaders/NRRDLoader.j
 import {ShaderLoader} from './ShaderLoader.js';
 import {createIntensityVolume, createNormalsMapVolume} from './VolumeUtils.js';
 import {Bounds, RenderStyle, ScaleMode} from './lib.js';
+import {
+  Uint8MinValue,
+  Uint8MaxValue,
+  PathToGrayColormap,
+  PathToViridisColormap,
+  PathToVertexShader,
+  PathToFragmentShader,
+  ObserverCameraBackgroundColor,
+  MainCameraBackgroundColor,
+} from './constants.js';
 
 
 export async function run() {
@@ -33,7 +43,7 @@ export async function run() {
   const height = window.innerHeight;
 
   const scene = new Scene();
-  scene.background = new Color(0xff0000);
+  scene.background = new Color(MainCameraBackgroundColor);
 
   const viewSize = 256;
   const camera = createCamera(width, height / 2, viewSize);
@@ -163,12 +173,12 @@ async function processData(renderContext, shapeVolume, intensityVolume) {
   const textureLoader = new TextureLoader();
   const viridis = await loadAsync(
       textureLoader,
-      'assets/textures/cm_viridis.png',
+      PathToViridisColormap,
       notifyProgress.bind(renderContext))
       .catch((error) => errorOnFileLoad(renderContext, error));
   const gray = await loadAsync(
       textureLoader,
-      'assets/textures/cm_gray.png',
+      PathToGrayColormap,
       notifyProgress.bind(renderContext))
       .catch((error) => errorOnFileLoad(renderContext, error));
 
@@ -180,7 +190,7 @@ async function processData(renderContext, shapeVolume, intensityVolume) {
   const shaderLoader = new ShaderLoader();
   const vertexShader = await loadAsync(
       shaderLoader,
-      'js/shaders/volumeshader_vs.glsl',
+      PathToVertexShader,
       notifyProgress.bind(renderContext))
       .catch((error) => errorOnFileLoad(renderContext, error));
   if (vertexShader) {
@@ -188,7 +198,7 @@ async function processData(renderContext, shapeVolume, intensityVolume) {
   }
   const fragmentShader = await loadAsync(
       shaderLoader,
-      'js/shaders/volumeshader_fs.glsl',
+      PathToFragmentShader,
       notifyProgress.bind(renderContext))
       .catch((error) => errorOnFileLoad(renderContext, error));
   if (fragmentShader) {
@@ -197,7 +207,7 @@ async function processData(renderContext, shapeVolume, intensityVolume) {
 
   const shapeBounds = Bounds.fromArray(shapeVolume.data);
   const intensityBounds = Bounds.fromArray(intensityVolume.data);
-  const normalsBounds = new Bounds(0, 255);
+  const normalsBounds = new Bounds(Uint8MinValue, Uint8MaxValue);
 
   const normalsMapVolume = createNormalsMapVolume(shapeVolume, normalsBounds);
 
@@ -218,7 +228,8 @@ async function processData(renderContext, shapeVolume, intensityVolume) {
       intensityVolume.zLength);
   const normalsSize = shapeSize;
 
-  // add shading (true/false) as int.
+  // add/remove light parameter
+  // relative_step_size parameter
   const uniforms = {
 
     u_shape_size: {value: shapeSize},
@@ -316,8 +327,6 @@ function setScissorForElement(element) {
 }
 
 function render() {
-  console.debug('Rendering...');
-
   this.renderer.setScissorTest(true);
 
   {
@@ -326,7 +335,7 @@ function render() {
     this.observerCamera.aspect = aspect;
     this.observerCamera.updateProjectionMatrix();
     this.cameraHelper.visible = true;
-    this.scene.background.set(0x000000);
+    this.scene.background.set(ObserverCameraBackgroundColor);
     this.renderer.render(this.scene, this.observerCamera);
   }
 
@@ -337,7 +346,7 @@ function render() {
     this.camera.updateProjectionMatrix();
     this.cameraHelper.update();
     this.cameraHelper.visible = false;
-    this.scene.background.set(0x000050);
+    this.scene.background.set(MainCameraBackgroundColor);
     this.renderer.render(this.scene, this.camera);
   }
 }
