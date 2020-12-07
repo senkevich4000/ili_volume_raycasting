@@ -40,49 +40,56 @@ function Cuboid(xPivot, yPivot, zPivot, xSize, ySize, zSize, intensity) {
   return this;
 }
 
-function createIntensityMapFromCuboids(sizedVolume, cuboids) {
-  const xStep = getStep(sizedVolume.xLength, sizedVolume.xSize);
-  const yStep = getStep(sizedVolume.yLength, sizedVolume.ySize);
-  const zStep = getStep(sizedVolume.zLength, sizedVolume.zSize);
+function createIntensityMapFromCuboids(
+    xLength,
+    yLength,
+    zLength,
+    xSize,
+    ySize,
+    zSize,
+    cuboids) {
+  const xStep = getStep(xLength, xSize);
+  const yStep = getStep(yLength, ySize);
+  const zStep = getStep(zLength, zSize);
 
-  const result = new Float32Array(sizedVolume.data.length);
-  const resultIndexer = new Indexer1D(
-      sizedVolue.xLength,
-      sizedVolume.yLength,
-      sizedVolume.zLength);
+  const result = new Float32Array(xLength * yLength * zLength);
+  const resultIndexer = new Indexer1D(xLength, yLength, zLength);
 
   cuboids.forEach((cuboid) => {
-    const xStartIndex = Math.floor(getIndex(cuboid.xPivot, xStep));
-    const yStartIndex = Math.floor(getIndex(cuboid.yPivot, yStep));
-    const zStartIndex = Math.floor(getIndex(cuboid.zPivot, zStep));
+    const xStartIndex = Math.floor(getIndex(cuboid.xPivot, xStep, xLength));
+    const yStartIndex = Math.floor(getIndex(cuboid.yPivot, yStep, yLength));
+    const zStartIndex = Math.floor(getIndex(cuboid.zPivot, zStep, zLength));
 
-    const xEndIndex = Math.ceil(getIndex(
-        getEndPosition(cuboid.xPivot, cuboid.xSize, sizedVolume.xSize),
-        xStep));
-    const yEndIndex = Math.ceil(getIndex(
-        getEndPosition(cuboid.yPivot, cuboid.ySize, sizedVolume.ySize),
-        yStep));
-    const zEndIndex = Math.ceil(getIndex(
-        getEndPosition(cuboid.zPivot, cuboid.zSize, sizedVolume.zSize),
-        zStep));
+    const xEndIndex = Math.floor(getIndex(
+        getEndPosition(cuboid.xPivot, cuboid.xSize, xSize),
+        xStep,
+        xLength));
+    const yEndIndex = Math.floor(getIndex(
+        getEndPosition(cuboid.yPivot, cuboid.ySize, ySize),
+        yStep,
+        yLength));
+    const zEndIndex = Math.floor(getIndex(
+        getEndPosition(cuboid.zPivot, cuboid.zSize, zSize),
+        zStep,
+        zLength));
 
-    for (let xIndex = xStartIndex; xIndex < xEndIndex; ++xIndex) {
-      for (let yIndex = yStartIndex; yIndex < yEndIndex; ++yLength) {
-        for (let zIndex = zStartIndex; zIndex < zEndIndex; ++zLength) {
+    for (let xIndex = xStartIndex; xIndex <= xEndIndex; ++xIndex) {
+      for (let yIndex = yStartIndex; yIndex <= yEndIndex; ++yIndex) {
+        for (let zIndex = zStartIndex; zIndex <= zEndIndex; ++zIndex) {
           result[resultIndexer.get(xIndex, yIndex, zIndex)] = cuboid.intensity;
         }
       }
     }
   });
 
-  return new Volume(result, sizedVolume.xLength, sizedVolume.yLength, sizedVolume.zLength);
+  return new Volume(result, xLength, yLength, zLength);
 
-  function getStep(length, sizes) {
-    return length / sizes;
+  function getStep(length, size) {
+    return size / length;
   }
 
-  function getIndex(position, step) {
-    return position / step;
+  function getIndex(position, step, limit) {
+    return Math.min(position / step, limit - 1);
   }
 
   function getEndPosition(startPosition, size, limit) {
