@@ -7,6 +7,99 @@ function Volume(data, xLength, yLength, zLength) {
   return this;
 }
 
+function SizedVolume(
+    data,
+    xLength,
+    yLength,
+    zLength,
+    xSize,
+    ySize,
+    zSize) {
+  Volume.call(this, data, xLength, yLength, zLength);
+  this.xSize = xSize;
+  this.ySize = ySize;
+  this.zSize = zSize;
+
+  return this;
+}
+
+SizedVolume.prototype = Object.create(Volume.prototype);
+SizedVolume.prototype.constructor = SizedVolume;
+
+function Cuboid(xPivot, yPivot, zPivot, xSize, ySize, zSize, intensity) {
+  this.xPivot = xPivot;
+  this.yPivot = yPivot;
+  this.zPivot = zPivot;
+
+  this.xSize = xSize;
+  this.ySize = ySize;
+  this.zSize = zSize;
+
+  this.intensity = intensity;
+
+  return this;
+}
+
+function createIntensityMapFromCuboids(sizedVolume, cuboids) {
+  const xStep = getStep(sizedVolume.xLength, sizedVolume.xSize);
+  const yStep = getStep(sizedVolume.yLength, sizedVolume.ySize);
+  const zStep = getStep(sizedVolume.zLength, sizedVolume.zSize);
+
+  const result = new Float32Array(sizedVolume.data.length);
+  const resultIndexer = new Indexer1D(
+      sizedVolue.xLength,
+      sizedVolume.yLength,
+      sizedVolume.zLength);
+
+  cuboids.forEach((cuboid) => {
+    const xStartIndex = Math.floor(getIndex(cuboid.xPivot, xStep));
+    const yStartIndex = Math.floor(getIndex(cuboid.yPivot, yStep));
+    const zStartIndex = Math.floor(getIndex(cuboid.zPivot, zStep));
+
+    const xEndIndex = Math.ceil(getIndex(
+        getEndPosition(cuboid.xPivot, cuboid.xSize, sizedVolume.xSize),
+        xStep));
+    const yEndIndex = Math.ceil(getIndex(
+        getEndPosition(cuboid.yPivot, cuboid.ySize, sizedVolume.ySize),
+        yStep));
+    const zEndIndex = Math.ceil(getIndex(
+        getEndPosition(cuboid.zPivot, cuboid.zSize, sizedVolume.zSize),
+        zStep));
+
+    for (let xIndex = xStartIndex; xIndex < xEndIndex; ++xIndex) {
+      for (let yIndex = yStartIndex; yIndex < yEndIndex; ++yLength) {
+        for (let zIndex = zStartIndex; zIndex < zEndIndex; ++zLength) {
+          result[resultIndexer.get(xIndex, yIndex, zIndex)] = cuboid.intensity;
+        }
+      }
+    }
+  });
+
+  return new Volume(result, sizedVolume.xLength, sizedVolume.yLength, sizedVolume.zLength);
+
+  function getStep(length, sizes) {
+    return length / sizes;
+  }
+
+  function getIndex(position, step) {
+    return position / step;
+  }
+
+  function getEndPosition(startPosition, size, limit) {
+    const endPosition = startPosition + size;
+    if (endPosition > limit) {
+      console.error(
+          'Cuboid is out if volume limits. Cuboid\'s end position: ' +
+          endPosition +
+          ' , Limit: ' +
+          limit);
+      return limit;
+    } else {
+      return endPosition;
+    }
+  }
+}
+
 function createNormalsMapVolume(volume, bounds) {
   const xLength = volume.xLength;
   const yLength = volume.yLength;
@@ -124,4 +217,11 @@ Indexer1D.prototype.getZClipped = function(xIndex, yIndex, zIndex) {
   return this.get(xIndex, yIndex, zIndex);
 };
 
-export {Volume, createNormalsMapVolume, createIntensityVolume};
+export {
+  Volume,
+  SizedVolume,
+  Cuboid,
+  createNormalsMapVolume,
+  createIntensityVolume,
+  createIntensityMapFromCuboids,
+};
