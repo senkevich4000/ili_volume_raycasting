@@ -24,7 +24,7 @@ import {
 import {OrbitControls} from './node_modules/three/examples/jsm/controls/OrbitControls.js';
 import {NRRDLoader} from './node_modules/three/examples/jsm/loaders/NRRDLoader.js';
 import {ShaderLoader} from './ShaderLoader.js';
-import {createIntensityVolume, createNormalsMapVolume} from './VolumeUtils.js';
+import {Cuboid, createIntensityMapFromCuboids, createNormalsMapVolume} from './VolumeUtils.js';
 import {Bounds, RenderStyle, ScaleMode} from './lib.js';
 import {
   Uint8MinValue,
@@ -81,10 +81,14 @@ export async function run() {
       'assets/models/stent.nrrd',
       notifyProgress.bind(renderContext))
       .catch((error) => errorOnFileLoad.call(renderContext, error));
-  const intensityVolume = createIntensityVolume(
+  const intensityVolume = createIntensityMapFromCuboids(
       shapeVolume.xLength,
       shapeVolume.yLength,
-      shapeVolume.zLength);
+      shapeVolume.zLength,
+      shapeVolume.xLength,
+      shapeVolume.yLength,
+      shapeVolume.zLength,
+      createCuboids(shapeVolume.xLength, shapeVolume.yLength, shapeVolume.zLength, true));
 
   if (shapeVolume && intensityVolume) {
     console.info('Data loaded!');
@@ -106,6 +110,23 @@ async function loadAsync(loader, path, progressCallback) {
           reject(errorResponse);
         });
   });
+}
+
+function createCuboids(xLength, yLength, zLength, full) {
+  const xOffset = xLength / 3;
+  const yOffset = yLength / 3;
+  const zOffset = zLength / 3;
+
+  if (full) {
+    return [
+      new Cuboid(0, 0, 0, xLength, yLength, zLength, 1),
+    ];
+  } else {
+    return [
+      new Cuboid(0, 0, 0, xOffset, yOffset, zOffset, 1.0),
+      new Cuboid(xLength - xOffset, yLength - yOffset, 0, xOffset, yOffset, zOffset, 1),
+    ];
+  }
 }
 
 function fillSceneWithCustomData(scene, xLength, yLength, zLength) {
