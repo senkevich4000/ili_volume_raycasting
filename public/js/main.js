@@ -86,7 +86,7 @@ export async function run() {
       'assets/models/stent.nrrd',
       notifyProgress.bind(renderContext))
       .catch((error) => errorOnFileLoad.call(renderContext, error));
-  const useCuboids = false;
+  const useCuboids = true;
   let intensityVolume;
   if (useCuboids) {
     intensityVolume = createIntensityMapFromCuboids(
@@ -96,13 +96,15 @@ export async function run() {
         shapeVolume.xLength,
         shapeVolume.yLength,
         shapeVolume.zLength,
-        createCuboids(shapeVolume.xLength, shapeVolume.yLength, shapeVolume.zLength, true));
+        createCuboids(shapeVolume.xLength, shapeVolume.yLength, shapeVolume.zLength));
   } else {
     intensityVolume = createIntensityVolume(
         shapeVolume.xLength,
         shapeVolume.yLength,
         shapeVolume.zLength);
   }
+
+  console.log(intensityVolume.data);
 
   if (shapeVolume && intensityVolume) {
     console.info('Data loaded!');
@@ -126,11 +128,12 @@ async function loadAsync(loader, path, progressCallback) {
   });
 }
 
-function createCuboids(xLength, yLength, zLength, full) {
-  const xOffset = xLength / 3;
-  const yOffset = yLength / 3;
-  const zOffset = zLength / 3;
+function createCuboids(xLength, yLength, zLength) {
+  const xOffset = xLength / 2;
+  const yOffset = yLength / 2;
+  const zOffset = zLength / 2;
 
+  const full = false;
   if (full) {
     return [
       new Cuboid(0, 0, 0, xLength, yLength, zLength, 1),
@@ -138,7 +141,7 @@ function createCuboids(xLength, yLength, zLength, full) {
   } else {
     return [
       new Cuboid(0, 0, 0, xOffset, yOffset, zOffset, 1.0),
-      new Cuboid(xLength - xOffset, yLength - yOffset, 0, xOffset, yOffset, zOffset, 1),
+      //new Cuboid(xLength - xOffset, yLength - yOffset, 0, xOffset, yOffset, zOffset, 1.0),
     ];
   }
 }
@@ -241,7 +244,8 @@ async function processData(renderContext, shapeVolume, intensityVolume) {
   }
 
   const shapeBounds = Bounds.fromArray(shapeVolume.data);
-  const intensityBounds = Bounds.fromArray(intensityVolume.data);
+  //const intensityBounds = Bounds.fromArray(intensityVolume.data);
+  const intensityBounds = new Bounds(0, 1);
   const normalsBounds = new Bounds(Uint8MinValue, Uint8MaxValue);
 
   const normalsMapVolume = createNormalsMapVolume(shapeVolume, normalsBounds);

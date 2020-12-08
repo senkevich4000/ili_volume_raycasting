@@ -35,7 +35,7 @@ const vec4 specular_color = vec4(1.0, 1.0, 1.0, 1.0);
 const float shininess = 180.0;
 
 const float uniformal_opacity = 0.99;
-const float uniformal_step_opacity = 0.3;
+const float uniformal_step_opacity = 0.7;
 const float transperancy_limit = 0.05;
 
 const bool complex_distance_calculation = true;
@@ -166,21 +166,23 @@ void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
         float shape_value = shape_sample(loc);
         float intensity_value = intensity_sample(loc);
 
-        // calculate normalized values
         float normalized_shape_value = normalized_value(shape_value, u_shape_bounds);
+
+        vec4 current_color = apply_shape_colormap(normalized_shape_value);
+        current_color.a *= normalized_shape_value;
+
         float normalized_intensity_value = normalized_value(
             intensity_value, 
             u_intensity_bounds);
+        if(normalized_intensity_value >= 0.0 && normalized_intensity_value <= 1.0) {
 
-        vec4 shape_color = apply_shape_colormap(normalized_shape_value);
-        vec4 intensity_color = apply_intensity_colormap(normalized_intensity_value);
+            vec4 intensity_color = apply_intensity_colormap(normalized_intensity_value);
 
-        shape_color.a *= normalized_shape_value;
-        intensity_color.a *= normalized_shape_value;
-        intensity_color.rgb *= normalized_shape_value * 5.0;
+            intensity_color.a *= normalized_shape_value;
+            intensity_color.rgb *= normalized_shape_value * 10.0;
 
-        //vec4 current_color = inverseBlend(shape_color, intensity_color);
-        vec4 current_color = inverseBlend(intensity_color, shape_color);
+            current_color = inverseBlend(intensity_color, current_color);
+        }
         vec3 normal_vector = normals_sample(loc);
         current_color = add_lighting(current_color, normal_vector, view_ray);
         //current_color.a *= normalized_shape_value;
@@ -213,6 +215,7 @@ float normalized_value(float value, vec2 bounds) {
     float scaled_value = scale(value);
     float scaled_min = scale(bounds.x);
     float scaled_max = scale(bounds.y);
+
     return (scaled_value - scaled_min) / (scaled_max - scaled_min);
 }
 

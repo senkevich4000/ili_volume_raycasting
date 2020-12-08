@@ -13,10 +13,30 @@ Bounds.prototype.asVector = function() {
 };
 
 Bounds.fromArray = function(data) {
-  const min = data.reduce((left, right) => left < right ? left : right, Number.MAX_VALUE);
-  const max = data.reduce((left, right) => left > right ? left : right, Number.MIN_VALUE);
+  const min = data.reduce(minCompare, Number.MAX_VALUE);
+  const max = data.reduce(maxCompare, Number.MIN_VALUE);
 
   return new Bounds(min, max);
+
+  function minCompare(left, right) {
+    if (isNaN(left)) {
+      return right;
+    }
+    if (isNaN(right)) {
+      return left;
+    }
+    return left < right ? left : right;
+  }
+
+  function maxCompare(left, right) {
+    if (isNaN(left)) {
+      return right;
+    }
+    if (isNaN(right)) {
+      return left;
+    }
+    return left > right ? left : right;
+  }
 };
 
 const RenderStyle = {

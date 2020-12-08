@@ -53,6 +53,8 @@ function createIntensityMapFromCuboids(
   const zStep = getStep(zLength, zSize);
 
   const result = new Float32Array(xLength * yLength * zLength);
+  result.fill(500);
+  //result.fill(Number.NaN);
   const resultIndexer = new Indexer1D(xLength, yLength, zLength);
 
   cuboids.forEach((cuboid) => {
