@@ -24,7 +24,12 @@ import {
 import {OrbitControls} from './node_modules/three/examples/jsm/controls/OrbitControls.js';
 import {NRRDLoader} from './node_modules/three/examples/jsm/loaders/NRRDLoader.js';
 import {ShaderLoader} from './ShaderLoader.js';
-import {Cuboid, createIntensityMapFromCuboids, createNormalsMapVolume} from './VolumeUtils.js';
+import {
+  Cuboid,
+  createIntensityVolume,
+  createIntensityMapFromCuboids,
+  createNormalsMapVolume,
+} from './VolumeUtils.js';
 import {Bounds, RenderStyle, ScaleMode} from './lib.js';
 import {
   Uint8MinValue,
@@ -81,14 +86,23 @@ export async function run() {
       'assets/models/stent.nrrd',
       notifyProgress.bind(renderContext))
       .catch((error) => errorOnFileLoad.call(renderContext, error));
-  const intensityVolume = createIntensityMapFromCuboids(
-      shapeVolume.xLength,
-      shapeVolume.yLength,
-      shapeVolume.zLength,
-      shapeVolume.xLength,
-      shapeVolume.yLength,
-      shapeVolume.zLength,
-      createCuboids(shapeVolume.xLength, shapeVolume.yLength, shapeVolume.zLength, true));
+  const useCuboids = false;
+  let intensityVolume;
+  if (useCuboids) {
+    intensityVolume = createIntensityMapFromCuboids(
+        shapeVolume.xLength,
+        shapeVolume.yLength,
+        shapeVolume.zLength,
+        shapeVolume.xLength,
+        shapeVolume.yLength,
+        shapeVolume.zLength,
+        createCuboids(shapeVolume.xLength, shapeVolume.yLength, shapeVolume.zLength, true));
+  } else {
+    intensityVolume = createIntensityVolume(
+        shapeVolume.xLength,
+        shapeVolume.yLength,
+        shapeVolume.zLength);
+  }
 
   if (shapeVolume && intensityVolume) {
     console.info('Data loaded!');

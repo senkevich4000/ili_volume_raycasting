@@ -35,7 +35,7 @@ const vec4 specular_color = vec4(1.0, 1.0, 1.0, 1.0);
 const float shininess = 180.0;
 
 const float uniformal_opacity = 0.99;
-const float uniformal_step_opacity = 0.99;
+const float uniformal_step_opacity = 0.3;
 const float transperancy_limit = 0.05;
 
 const bool complex_distance_calculation = true;
@@ -177,9 +177,10 @@ void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
 
         shape_color.a *= normalized_shape_value;
         intensity_color.a *= normalized_shape_value;
-        intensity_color.rgb *= normalized_shape_value * 20.0;
+        intensity_color.rgb *= normalized_shape_value * 5.0;
 
-        vec4 current_color = inverseBlend(shape_color, intensity_color);
+        //vec4 current_color = inverseBlend(shape_color, intensity_color);
+        vec4 current_color = inverseBlend(intensity_color, shape_color);
         vec3 normal_vector = normals_sample(loc);
         current_color = add_lighting(current_color, normal_vector, view_ray);
         //current_color.a *= normalized_shape_value;
