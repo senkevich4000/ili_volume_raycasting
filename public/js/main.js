@@ -19,6 +19,8 @@ import {
   Vector3,
   WebGLRenderer,
   RedFormat,
+  NormalBlending,
+  NoBlending,
   RGBFormat,
 } from './node_modules/three/build/three.module.js';
 import {OrbitControls} from './node_modules/three/examples/jsm/controls/OrbitControls.js';
@@ -50,9 +52,15 @@ export async function run() {
   const scene = new Scene();
   scene.background = new Color(MainCameraBackgroundColor);
 
-  const viewSize = 256;
-  const camera = createCamera(width, height / 2, viewSize);
-  const observerCamera = createCamera(width, height / 2, viewSize * 2);
+  const dataWidth = 128;
+  const dataHeight = 128;
+  const dataDepth = 256;
+  const dataMax = Math.max(Math.max(dataWidth, dataHeight), dataDepth);
+
+  fillSceneWithCustomData(scene, dataWidth, dataHeight, dataDepth);
+
+  const camera = createCamera(dataMax);
+  const observerCamera = createCamera(dataMax);
   observerCamera.near = 1;
   observerCamera.far = 4000;
   observerCamera.position.set(100, 0, 0);
@@ -60,8 +68,6 @@ export async function run() {
 
   const cameraHelper = new CameraHelper(camera);
   scene.add(cameraHelper);
-
-  fillSceneWithCustomData(scene, 128, 128, 256);
 
   const view = new View();
   const renderer = new WebGLRenderer({canvas: view.canvas});
@@ -73,11 +79,12 @@ export async function run() {
       camera,
       observerCamera,
       cameraHelper,
-      renderer);
+      renderer,
+      dataMax);
   const renderCall = render.bind(renderContext);
 
   createOrbitControls(camera, view.bottomElement, renderCall);
-  createOrbitControls(observerCamera, view.topElement, renderCall);
+  //createOrbitControls(observerCamera, view.topElement, renderCall);
 
   const dataLoader = new NRRDLoader();
   console.log('Trying to load the data...');
@@ -140,8 +147,9 @@ function createCuboids(xLength, yLength, zLength) {
     ];
   } else {
     return [
-      new Cuboid(0, 0, 0, xOffset, yOffset, zOffset, 1.0),
-      //new Cuboid(xLength - xOffset, yLength - yOffset, 0, xOffset, yOffset, zOffset, 1.0),
+      new Cuboid(0, 0, 0, xOffset, yOffset, zOffset, 0.75),
+      new Cuboid(xLength - xOffset, yLength - yOffset, 0, xOffset, yOffset, zOffset, 0.25),
+      new Cuboid(0, 0, zLength - zOffset, xLength, yLength, zOffset, 1)
     ];
   }
 }
@@ -162,8 +170,8 @@ function fillSceneWithCustomData(scene, xLength, yLength, zLength) {
   const pivot = new Mesh(pivotGeometry, greenMaterial);
   addAxes(pivot);
 
-  scene.add(boundBox);
-  scene.add(pivot);
+  //scene.add(boundBox);
+  //scene.add(pivot);
 }
 
 function addAxes(object) {
@@ -173,20 +181,29 @@ function addAxes(object) {
   object.add(axes);
 }
 
-function createCamera(width, height, size) {
-  const aspectRatio = width / height;
+function createCamera(dimension) {
+  const camera = new OrthographicCamera();
+  camera.position.set(0, 0, -dimension * 2);
+  camera.up.set(0, 0, 1);
+  return camera;
+}
+
+function updateOrthoCamera(camera, dimension, aspect) {
   const near = 10;
   const far = 1000;
-  const right = aspectRatio * size / 2;
+  const right = dimension / 2 * aspect;
   const left = -right;
-  const top = size / 2;
+  const top = dimension / 2;
   const bottom = -top;
-  const camera = new OrthographicCamera(left, right, top, bottom, near, far);
 
-  camera.position.set(0, 0, 128);
-  camera.up.set(0, 0, 1);
-
-  return camera;
+  camera.left = left;
+  camera.right = right;
+  camera.top = top;
+  camera.bottom = bottom;
+  camera.near = near;
+  camera.far = far;
+  camera.aspect = aspect;
+  camera.updateProjectionMatrix();
 }
 
 function createDefaultTextureFromVolume(volume) {
@@ -288,6 +305,13 @@ async function processData(renderContext, shapeVolume, intensityVolume) {
     u_renderthreshold: {value: 0.15},
     u_clim: {value: new Vector2(0, 1 )},
 
+    u_relative_step_size: {value: 1.0},
+    uniformal_opacity: { value: 1 },
+    uniformal_step_opacity: { value: 0.6 },
+
+    u_proportional_opacity_enabled: {value: 0},
+    u_lighting_enabled: {value: 0},
+
     u_scalemode: {value: ScaleMode.linear},
   };
 
@@ -296,6 +320,7 @@ async function processData(renderContext, shapeVolume, intensityVolume) {
     vertexShader: vertexShader,
     fragmentShader: fragmentShader,
     side: BackSide,
+    transparent: true
   });
 
   const geometry = new BoxBufferGeometry(1, 1, 1);
@@ -326,10 +351,11 @@ function View() {
   this.bottomElement = document.querySelector('#bottom');
 }
 
-function RenderContext(view, scene, camera, observerCamera, cameraHelper, renderer) {
+function RenderContext(view, scene, camera, observerCamera, cameraHelper, renderer, maxDimension) {
   this.view = view;
   this.scene = scene;
   this.camera = camera;
+  this.maxDimension = maxDimension;
   this.observerCamera = observerCamera;
   this.cameraHelper = cameraHelper;
   this.renderer = renderer;
@@ -368,6 +394,7 @@ function setScissorForElement(element) {
 function render() {
   this.renderer.setScissorTest(true);
 
+  /** 
   {
     this.cameraHelper.visile = false;
     const aspect = setScissorForElement.call(this, this.view.topElement);
@@ -376,13 +403,12 @@ function render() {
     this.cameraHelper.visible = true;
     this.scene.background.set(ObserverCameraBackgroundColor);
     this.renderer.render(this.scene, this.observerCamera);
-  }
+  }*/
 
   {
     this.cameraHelper.visile = true;
     const aspect = setScissorForElement.call(this, this.view.bottomElement);
-    this.camera.aspect = aspect;
-    this.camera.updateProjectionMatrix();
+    updateOrthoCamera(this.camera, this.maxDimension, aspect);
     this.cameraHelper.update();
     this.cameraHelper.visible = false;
     this.scene.background.set(MainCameraBackgroundColor);
