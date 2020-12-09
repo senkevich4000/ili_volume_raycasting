@@ -53,8 +53,7 @@ function createIntensityMapFromCuboids(
   const zStep = getStep(zLength, zSize);
 
   const result = new Float32Array(xLength * yLength * zLength);
-  result.fill(500);
-  //result.fill(Number.NaN);
+  result.fill(Number.NaN); // Fake value that indiates that voxel should not be colored.
   const resultIndexer = new Indexer1D(xLength, yLength, zLength);
 
   cuboids.forEach((cuboid) => {
@@ -188,42 +187,35 @@ function Indexer1D(xLength, yLength, zLength) {
   this.xLength = xLength;
   this.yLength = yLength;
   this.zLength = zLength;
-  this.length = xLength * yLength * zLength;
+
+  this.xTopBound = xLength - 1;
+  this.yTopBound = yLength - 1;
+  this.zTopBound = zLength - 1;
+
+  this.stride = xLength;
+  this.pitch = this.stride * yLength;
+  this.depthPitch = this.pitch * zLength;
 }
 
 Indexer1D.prototype.get = function(xIndex, yIndex, zIndex) {
-  const index = zIndex + this.zLength * (yIndex + this.yLength * xIndex);
+  const index = zIndex * this.pitch + yIndex * this.stride + xIndex;
   return index;
 };
 
+Indexer1D.prototype.getClipped = function(xIndex, yIndex, zIndex, bound) {
+  return this.get(xIndex, yIndex, Math.min(bound, Math.max(0, zIndex)));
+};
+
 Indexer1D.prototype.getXClipped = function(xIndex, yIndex, zIndex) {
-  if (xIndex < 0) {
-    xIndex = 0;
-  }
-  if (xIndex == this.xLength) {
-    --xIndex;
-  }
-  return this.get(xIndex, yIndex, zIndex);
+  return this.getClipped(xIndex, yIndex, zIndex, this.xTopBound);
 };
 
 Indexer1D.prototype.getYClipped = function(xIndex, yIndex, zIndex) {
-  if (yIndex < 0) {
-    yIndex = 0;
-  }
-  if (yIndex == this.yLength) {
-    --yIndex;
-  }
-  return this.get(xIndex, yIndex, zIndex);
+  return this.getClipped(xIndex, yIndex, zIndex, this.yTopBound);
 };
 
 Indexer1D.prototype.getZClipped = function(xIndex, yIndex, zIndex) {
-  if (zIndex < 0) {
-    zIndex = 0;
-  }
-  if (zIndex == this.zLength) {
-    --zIndex;
-  }
-  return this.get(xIndex, yIndex, zIndex);
+  return this.getClipped(xIndex, yIndex, zIndex, this.zTopBound);
 };
 
 export {

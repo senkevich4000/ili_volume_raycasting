@@ -16,26 +16,32 @@ uniform sampler3D u_normals_data;
 
 uniform int u_renderstyle;
 uniform float u_renderthreshold;
+uniform float u_relative_step_size;
 uniform vec2 u_clim;
 uniform int u_scalemode;
+uniform float uniformal_opacity;
+uniform float uniformal_step_opacity;
+
+uniform int u_proportional_opacity_enabled;
+uniform int u_lighting_enabled;
 
 varying vec3 v_position;
 varying vec4 v_nearpos;
 varying vec4 v_farpos;
 
+
+
 // The maximum distance through our rendering volume is sqrt(3).
 const int MAX_STEPS = 887;      // 887 for 512^3, 1774 for 1024^3
 const int REFINEMENT_STEPS = 4;
-
-const float relative_step_size = 1.0;
 
 const vec4 ambient_color = vec4(0.2, 0.4, 0.2, 1.0);
 const vec4 diffuse_color = vec4(0.8, 0.2, 0.2, 1.0);
 const vec4 specular_color = vec4(1.0, 1.0, 1.0, 1.0);
 const float shininess = 180.0;
 
-const float uniformal_opacity = 0.99;
-const float uniformal_step_opacity = 0.7;
+//const float uniformal_opacity = 1.0;
+//const float uniformal_step_opacity = 0.2;
 const float transperancy_limit = 0.05;
 
 const bool complex_distance_calculation = true;
@@ -75,7 +81,7 @@ void main() {
     vec3 front = v_position + view_ray * distance;
 
     // Decide how many steps to take
-    int nsteps = int((-distance / relative_step_size) + 0.5);
+    int nsteps = int((-distance / u_relative_step_size) + 0.5);
     if ( nsteps < 1 )
     {
         if(debug_mode)
@@ -102,7 +108,7 @@ void main() {
         debug_steps(nsteps, u_shape_size.x);
     }
 
-    discard_transparent();
+    //discard_transparent();
 }
 
 float shape_sample(vec3 texcoords) {
@@ -152,7 +158,7 @@ vec4 apply_intensity_colormap(float normalized_value) {
 
 void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
     gl_FragColor = vec4(0.0);
-    vec4 final_color = vec4(0.0);
+    vec4 final_color = vec4(0.0, 0.0, 0.0, 0.0);
     vec3 loc = start_loc;
 
     // Enter the raycasting loop. In WebGL 1 the loop index cannot be compared with
@@ -164,29 +170,31 @@ void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
 
         // Sample from the 3D texture
         float shape_value = shape_sample(loc);
-        float intensity_value = intensity_sample(loc);
-
         float normalized_shape_value = normalized_value(shape_value, u_shape_bounds);
+        vec4 shape_color = apply_shape_colormap(normalized_shape_value);
+        shape_color.a *= normalized_shape_value;
 
-        vec4 current_color = apply_shape_colormap(normalized_shape_value);
-        current_color.a *= normalized_shape_value;
+        vec4 current_color = shape_color; 
 
+        float intensity_value = intensity_sample(loc);
         float normalized_intensity_value = normalized_value(
             intensity_value, 
             u_intensity_bounds);
-        if(normalized_intensity_value >= 0.0 && normalized_intensity_value <= 1.0) {
-
+        if (!isnan(normalized_intensity_value)) {
             vec4 intensity_color = apply_intensity_colormap(normalized_intensity_value);
-
-            intensity_color.a *= normalized_shape_value;
-            intensity_color.rgb *= normalized_shape_value * 10.0;
-
-            current_color = inverseBlend(intensity_color, current_color);
+            if (u_proportional_opacity_enabled == 1) {
+                intensity_color.a *= normalized_intensity_value; 
+            }
+            current_color.rgb = mix(current_color.rgb, intensity_color.rgb, intensity_color.a);
         }
-        vec3 normal_vector = normals_sample(loc);
-        current_color = add_lighting(current_color, normal_vector, view_ray);
-        //current_color.a *= normalized_shape_value;
+      
+        if (u_lighting_enabled == 1) {
+            vec3 normal_vector = normals_sample(loc);
+            current_color = add_lighting(current_color, normal_vector, view_ray);
+        }
+  
         current_color.a *= uniformal_step_opacity;
+
         final_color = inverseBlend(final_color, current_color);
 
         // Advance location deeper into the volume
