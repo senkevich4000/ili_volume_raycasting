@@ -15,9 +15,7 @@ uniform vec3 u_normals_size;
 uniform sampler3D u_normals_data;
 
 uniform int u_renderstyle;
-uniform float u_renderthreshold;
 uniform float u_relative_step_size;
-uniform vec2 u_clim;
 uniform int u_scalemode;
 uniform float uniformal_opacity;
 uniform float uniformal_step_opacity;
@@ -38,10 +36,8 @@ const int REFINEMENT_STEPS = 4;
 const vec4 ambient_color = vec4(0.2, 0.4, 0.2, 1.0);
 const vec4 diffuse_color = vec4(0.8, 0.2, 0.2, 1.0);
 const vec4 specular_color = vec4(1.0, 1.0, 1.0, 1.0);
-const float shininess = 180.0;
+const float shininess = 10.0;
 
-//const float uniformal_opacity = 1.0;
-//const float uniformal_step_opacity = 0.2;
 const float transperancy_limit = 0.05;
 
 const bool complex_distance_calculation = true;
@@ -168,7 +164,6 @@ void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
         if (iter >= nsteps)
             break;
 
-        // Sample from the 3D texture
         float shape_value = shape_sample(loc);
         float normalized_shape_value = normalized_value(shape_value, u_shape_bounds);
         vec4 shape_color = apply_shape_colormap(normalized_shape_value);
@@ -197,7 +192,6 @@ void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
 
         final_color = inverseBlend(final_color, current_color);
 
-        // Advance location deeper into the volume
         loc += step;
     }
     final_color = finish_inverse_blend(final_color);

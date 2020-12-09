@@ -1,26 +1,19 @@
 import {
-  AxesHelper,
   BackSide,
   BoxBufferGeometry,
-  BoxGeometry,
-  CameraHelper,
   Color,
   DataTexture3D,
   FloatType,
   UnsignedByteType,
   LinearFilter,
   Mesh,
-  MeshBasicMaterial,
   OrthographicCamera,
   Scene,
   ShaderMaterial,
   TextureLoader,
-  Vector2,
   Vector3,
   WebGLRenderer,
   RedFormat,
-  NormalBlending,
-  NoBlending,
   RGBFormat,
 } from './node_modules/three/build/three.module.js';
 import {OrbitControls} from './node_modules/three/examples/jsm/controls/OrbitControls.js';
@@ -40,9 +33,15 @@ import {
   PathToViridisColormap,
   PathToVertexShader,
   PathToFragmentShader,
-  ObserverCameraBackgroundColor,
   MainCameraBackgroundColor,
 } from './constants.js';
+
+
+// 1. Debug lighting
+// 2. Use workers for remapping and normal compute.
+// 3. Move all options into separate container (RenderingSettings).
+//    Add background to options.
+// 4. Think about serialization.
 
 
 export async function run() {
@@ -57,17 +56,7 @@ export async function run() {
   const dataDepth = 256;
   const dataMax = Math.max(Math.max(dataWidth, dataHeight), dataDepth);
 
-  fillSceneWithCustomData(scene, dataWidth, dataHeight, dataDepth);
-
   const camera = createCamera(dataMax);
-  const observerCamera = createCamera(dataMax);
-  observerCamera.near = 1;
-  observerCamera.far = 4000;
-  observerCamera.position.set(100, 0, 0);
-  observerCamera.lookAt(0, 0, 0);
-
-  const cameraHelper = new CameraHelper(camera);
-  scene.add(cameraHelper);
 
   const view = new View();
   const renderer = new WebGLRenderer({canvas: view.canvas});
@@ -77,14 +66,11 @@ export async function run() {
       view,
       scene,
       camera,
-      observerCamera,
-      cameraHelper,
       renderer,
       dataMax);
   const renderCall = render.bind(renderContext);
 
   createOrbitControls(camera, view.bottomElement, renderCall);
-  //createOrbitControls(observerCamera, view.topElement, renderCall);
 
   const dataLoader = new NRRDLoader();
   console.log('Trying to load the data...');
@@ -149,41 +135,14 @@ function createCuboids(xLength, yLength, zLength) {
     return [
       new Cuboid(0, 0, 0, xOffset, yOffset, zOffset, 0.75),
       new Cuboid(xLength - xOffset, yLength - yOffset, 0, xOffset, yOffset, zOffset, 0.25),
-      new Cuboid(0, 0, zLength - zOffset, xLength, yLength, zOffset, 1)
+      new Cuboid(xOffset / 2, yOffset, zLength - zOffset, xLength / 2, yLength / 2, zOffset, 1),
     ];
   }
 }
 
-function fillSceneWithCustomData(scene, xLength, yLength, zLength) {
-  const geometry = new BoxGeometry(1, 1, 1);
-  geometry.name = 'Bounds';
-  geometry.scale(xLength, yLength, zLength);
-
-  const redMaterial = new MeshBasicMaterial( {color: 0xff0000});
-  redMaterial.wireframe = true;
-
-  const boundBox = new Mesh(geometry, redMaterial);
-
-  const greenMaterial = new MeshBasicMaterial( {color: 0x11ff00});
-  const pivotGeometry = new BoxGeometry(10, 10, 10);
-  pivotGeometry.name = 'Pivot';
-  const pivot = new Mesh(pivotGeometry, greenMaterial);
-  addAxes(pivot);
-
-  //scene.add(boundBox);
-  //scene.add(pivot);
-}
-
-function addAxes(object) {
-  const axes = new AxesHelper(10);
-  axes.renderOrder = 1;
-  axes.material.depthTest = false;
-  object.add(axes);
-}
-
 function createCamera(dimension) {
   const camera = new OrthographicCamera();
-  camera.position.set(0, 0, -dimension * 2);
+  camera.position.set(0, 0, dimension * 2);
   camera.up.set(0, 0, 1);
   return camera;
 }
@@ -261,7 +220,6 @@ async function processData(renderContext, shapeVolume, intensityVolume) {
   }
 
   const shapeBounds = Bounds.fromArray(shapeVolume.data);
-  //const intensityBounds = Bounds.fromArray(intensityVolume.data);
   const intensityBounds = new Bounds(0, 1);
   const normalsBounds = new Bounds(Uint8MinValue, Uint8MaxValue);
 
@@ -284,10 +242,7 @@ async function processData(renderContext, shapeVolume, intensityVolume) {
       intensityVolume.zLength);
   const normalsSize = shapeSize;
 
-  // add/remove light parameter
-  // relative_step_size parameter
   const uniforms = {
-
     u_shape_size: {value: shapeSize},
     u_shape_data: {value: shapeTexture},
     u_shape_cmdata: {value: gray},
@@ -302,15 +257,13 @@ async function processData(renderContext, shapeVolume, intensityVolume) {
     u_normals_data: {value: normalsTexture},
 
     u_renderstyle: {value: RenderStyle.raycast},
-    u_renderthreshold: {value: 0.15},
-    u_clim: {value: new Vector2(0, 1 )},
 
     u_relative_step_size: {value: 1.0},
-    uniformal_opacity: { value: 1 },
-    uniformal_step_opacity: { value: 0.6 },
+    uniformal_opacity: {value: 1},
+    uniformal_step_opacity: {value: 0.6},
 
     u_proportional_opacity_enabled: {value: 0},
-    u_lighting_enabled: {value: 0},
+    u_lighting_enabled: {value: 1},
 
     u_scalemode: {value: ScaleMode.linear},
   };
@@ -320,11 +273,10 @@ async function processData(renderContext, shapeVolume, intensityVolume) {
     vertexShader: vertexShader,
     fragmentShader: fragmentShader,
     side: BackSide,
-    transparent: true
+    transparent: true,
   });
 
   const geometry = new BoxBufferGeometry(1, 1, 1);
-  geometry.name = 'Volume';
   const translate = 0.5;
   geometry.translate(translate, translate, translate);
   geometry.scale(shapeSize.x, shapeSize.y, shapeSize.z);
@@ -351,13 +303,11 @@ function View() {
   this.bottomElement = document.querySelector('#bottom');
 }
 
-function RenderContext(view, scene, camera, observerCamera, cameraHelper, renderer, maxDimension) {
+function RenderContext(view, scene, camera, renderer, maxDimension) {
   this.view = view;
   this.scene = scene;
   this.camera = camera;
   this.maxDimension = maxDimension;
-  this.observerCamera = observerCamera;
-  this.cameraHelper = cameraHelper;
   this.renderer = renderer;
 }
 
@@ -394,23 +344,9 @@ function setScissorForElement(element) {
 function render() {
   this.renderer.setScissorTest(true);
 
-  /** 
   {
-    this.cameraHelper.visile = false;
-    const aspect = setScissorForElement.call(this, this.view.topElement);
-    this.observerCamera.aspect = aspect;
-    this.observerCamera.updateProjectionMatrix();
-    this.cameraHelper.visible = true;
-    this.scene.background.set(ObserverCameraBackgroundColor);
-    this.renderer.render(this.scene, this.observerCamera);
-  }*/
-
-  {
-    this.cameraHelper.visile = true;
     const aspect = setScissorForElement.call(this, this.view.bottomElement);
     updateOrthoCamera(this.camera, this.maxDimension, aspect);
-    this.cameraHelper.update();
-    this.cameraHelper.visible = false;
     this.scene.background.set(MainCameraBackgroundColor);
     this.renderer.render(this.scene, this.camera);
   }
