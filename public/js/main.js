@@ -37,7 +37,6 @@ import {
 } from './constants.js';
 
 
-// 1. Debug lighting
 // 2. Use workers for remapping and normal compute.
 // 3. Move all options into separate container (RenderingSettings).
 //    Add background to options.

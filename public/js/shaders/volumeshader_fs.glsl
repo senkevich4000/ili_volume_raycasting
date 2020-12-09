@@ -28,15 +28,15 @@ varying vec4 v_nearpos;
 varying vec4 v_farpos;
 
 
-
 // The maximum distance through our rendering volume is sqrt(3).
 const int MAX_STEPS = 887;      // 887 for 512^3, 1774 for 1024^3
 const int REFINEMENT_STEPS = 4;
 
-const vec4 ambient_color = vec4(0.2, 0.4, 0.2, 1.0);
-const vec4 diffuse_color = vec4(0.8, 0.2, 0.2, 1.0);
-const vec4 specular_color = vec4(1.0, 1.0, 1.0, 1.0);
-const float shininess = 10.0;
+const vec4 default_ambient_color = vec4(0.2, 0.4, 0.2, 1.0);
+const vec4 default_diffuse_color = vec4(0.8, 0.2, 0.2, 1.0);
+const vec4 default_specular_color = vec4(1.0, 1.0, 1.0, 1.0);
+const float min_lambert_term = 0.6;
+const float shininess = 100.0;
 
 const float transperancy_limit = 0.05;
 
@@ -103,8 +103,6 @@ void main() {
     {
         debug_steps(nsteps, u_shape_size.x);
     }
-
-    //discard_transparent();
 }
 
 float shape_sample(vec3 texcoords) {
@@ -238,41 +236,26 @@ vec4 add_lighting(vec4 color, vec3 normal_vector, vec3 view_ray) {
 
     // View direction
     vec3 V = normalize(view_ray);
-
-    float gm = length(normal_vector); // gradient magnitude
     vec3 N = normalize(normal_vector);
-
 
     // Flip normal so it points towards viewer
     float Nselect = float(dot(N, V) > 0.0);
     N = (2.0 * Nselect - 1.0) * N;
 
-    vec4 ambient_color = vec4(0.0, 0.0, 0.0, 0.0);
     vec4 diffuse_color = vec4(0.0, 0.0, 0.0, 0.0);
     vec4 specular_color = vec4(0.0, 0.0, 0.0, 0.0);
 
-    // note: could allow multiple lights
-    for (int i=0; i<1; i++) {
-        // Get light direction (make sure to prevent zero devision)
-        float lightEnabled = float(length(V) > 0.0);
-        vec3 L = normalize(V + (1.0 - lightEnabled));
+    // Calculate lighting properties
+    float lambertTerm = clamp(dot(N, V), min_lambert_term, 1.0);
+    vec3 H = normalize(V+V); // Halfway vector
+    float specularTerm = pow(dot(H, N), shininess);
 
-        // Calculate lighting properties
-        float lambertTerm = clamp(dot(N, L), 0.0, 1.0);
-        vec3 H = normalize(L+V); // Halfway vector
-        float specularTerm = pow(max(dot(H, N), 0.0), shininess);
-
-        // Calculate mask
-        float mask1 = lightEnabled;
-
-        // Calculate colors
-        ambient_color += mask1 * ambient_color; // * gl_LightSource[i].ambient;
-        diffuse_color += mask1 * lambertTerm;
-        specular_color += mask1 * specularTerm * specular_color;
-    }
+    // Calculate colors
+    diffuse_color += lambertTerm;
+    specular_color += specularTerm * specular_color;
 
     // Calculate final color by componing different components
-    vec4 final_color = color * (ambient_color + diffuse_color) + specular_color;
+    vec4 final_color = color * diffuse_color + specular_color;
     final_color.a = color.a;
     return final_color;
 }
