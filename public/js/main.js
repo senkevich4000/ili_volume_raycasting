@@ -62,7 +62,20 @@ define(
           cuboids: createCuboids(shapeVolume.xLength, shapeVolume.yLength, shapeVolume.zLength),
         });
         worker.onmessage = function(event) {
-          console.log(event);
+          if (event.data.ready) {
+            console.log(event.data);
+          } else {
+            console.log(event.data);
+            worker.postMessage({
+              xLength: shapeVolume.xLength,
+              yLength: shapeVolume.yLength,
+              zLength: shapeVolume.zLength,
+              xSize: shapeVolume.xLength,
+              ySize: shapeVolume.yLength,
+              zSize: shapeVolume.zLength,
+              cuboids: createCuboids(shapeVolume.xLength, shapeVolume.yLength, shapeVolume.zLength),
+            });
+          }
         };
         const intensityVolume = VolumeUtils.getIntensityMapFromCuboidCreator(
             shapeVolume.xLength,
