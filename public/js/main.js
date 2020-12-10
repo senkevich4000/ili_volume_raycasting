@@ -225,7 +225,6 @@ define(
           mesh.position.z = -shapeSize.z / 2;
 
           renderContext.scene.add(mesh);
-          console.log(renderContext);
           renderCall();
         });
       }

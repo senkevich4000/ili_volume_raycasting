@@ -7,7 +7,6 @@ require(
     ['VolumeUtils'],
     function(VolumeUtils) {
       onmessage = function(event) {
-        console.log('Worker get the message...');
         const info = event.data;
         const result = VolumeUtils.getIntensityMapFromCuboidCreator(
             info.xLength,
