@@ -1,55 +1,54 @@
-import {Vector2} from './node_modules/three/build/three.module.js';
+define(['three'], function(three) {
+  function Bounds(min, max) {
+    this.min = min;
+    this.max = max;
 
-
-function Bounds(min, max) {
-  this.min = min;
-  this.max = max;
-
-  return this;
-}
-
-Bounds.prototype.asVector = function() {
-  return new Vector2(this.min, this.max);
-};
-
-Bounds.fromArray = function(data) {
-  const min = data.reduce(minCompare, Number.MAX_VALUE);
-  const max = data.reduce(maxCompare, Number.MIN_VALUE);
-
-  return new Bounds(min, max);
-
-  function minCompare(left, right) {
-    if (isNaN(left)) {
-      return right;
-    }
-    if (isNaN(right)) {
-      return left;
-    }
-    return left < right ? left : right;
+    return this;
   }
 
-  function maxCompare(left, right) {
-    if (isNaN(left)) {
-      return right;
+  Bounds.prototype.asVector = function() {
+    return new three.Vector2(this.min, this.max);
+  };
+
+  Bounds.fromArray = function(data) {
+    const min = data.reduce(minCompare, Number.MAX_VALUE);
+    const max = data.reduce(maxCompare, Number.MIN_VALUE);
+
+    return new Bounds(min, max);
+
+    function minCompare(left, right) {
+      if (isNaN(left)) {
+        return right;
+      }
+      if (isNaN(right)) {
+        return left;
+      }
+      return left < right ? left : right;
     }
-    if (isNaN(right)) {
-      return left;
+
+    function maxCompare(left, right) {
+      if (isNaN(left)) {
+        return right;
+      }
+      if (isNaN(right)) {
+        return left;
+      }
+      return left > right ? left : right;
     }
-    return left > right ? left : right;
-  }
-};
+  };
 
-const RenderStyle = {
-  raycast: 0,
-  steps_debug: 1,
-};
-Object.freeze(RenderStyle);
+  const RenderStyle = {
+    raycast: 0,
+    steps_debug: 1,
+  };
+  Object.freeze(RenderStyle);
 
-const ScaleMode = {
-  linear: 0,
-  sqrt: 1,
-  log: 2,
-};
-Object.freeze(ScaleMode);
+  const ScaleMode = {
+    linear: 0,
+    sqrt: 1,
+    log: 2,
+  };
+  Object.freeze(ScaleMode);
 
-export {Bounds, RenderStyle, ScaleMode};
+  return {Bounds, RenderStyle, ScaleMode};
+});

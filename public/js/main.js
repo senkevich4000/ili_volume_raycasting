@@ -1,352 +1,334 @@
-import {
-  BackSide,
-  BoxBufferGeometry,
-  Color,
-  DataTexture3D,
-  FloatType,
-  UnsignedByteType,
-  LinearFilter,
-  Mesh,
-  OrthographicCamera,
-  Scene,
-  ShaderMaterial,
-  TextureLoader,
-  Vector3,
-  WebGLRenderer,
-  RedFormat,
-  RGBFormat,
-} from './node_modules/three/build/three.module.js';
-import {OrbitControls} from './node_modules/three/examples/jsm/controls/OrbitControls.js';
-import {NRRDLoader} from './node_modules/three/examples/jsm/loaders/NRRDLoader.js';
-import {ShaderLoader} from './ShaderLoader.js';
-import {
-  Cuboid,
-  createIntensityVolume,
-  createIntensityMapFromCuboids,
-  createNormalsMapVolume,
-} from './VolumeUtils.js';
-import {Bounds, RenderStyle, ScaleMode} from './lib.js';
-import {
-  Uint8MinValue,
-  Uint8MaxValue,
-  PathToGrayColormap,
-  PathToViridisColormap,
-  PathToVertexShader,
-  PathToFragmentShader,
-  MainCameraBackgroundColor,
-} from './constants.js';
+define(
+    [
+      'three',
+      'orbitControls',
+      'nrrdLoader',
+      'shaderLoader',
+      'volumeUtils',
+      'lib',
+      'constants',
+    ],
+    function(three, OrbitControls, NRRDLoader, ShaderLoader, VolumeUtils, lib, constants) {
+    // 2. Use workers for remapping and normal compute.
+    // 3. Move all options into separate container (RenderingSettings).
+    //    Add background to options.
+    // 4. Think about serialization.
 
+      async function run() {
+        const width = window.innerWidth;
+        const height = window.innerHeight;
 
-// 2. Use workers for remapping and normal compute.
-// 3. Move all options into separate container (RenderingSettings).
-//    Add background to options.
-// 4. Think about serialization.
+        const scene = new three.Scene();
+        scene.background = new three.Color(constants.MainCameraBackgroundColor);
 
+        const dataWidth = 128;
+        const dataHeight = 128;
+        const dataDepth = 256;
+        const dataMax = Math.max(Math.max(dataWidth, dataHeight), dataDepth);
 
-export async function run() {
-  const width = window.innerWidth;
-  const height = window.innerHeight;
+        const camera = createCamera(dataMax);
 
-  const scene = new Scene();
-  scene.background = new Color(MainCameraBackgroundColor);
+        const view = new View();
+        const renderer = new three.WebGLRenderer({canvas: view.canvas});
+        renderer.setSize(width, height);
 
-  const dataWidth = 128;
-  const dataHeight = 128;
-  const dataDepth = 256;
-  const dataMax = Math.max(Math.max(dataWidth, dataHeight), dataDepth);
+        const renderContext = new RenderContext(
+            view,
+            scene,
+            camera,
+            renderer,
+            dataMax);
+        const renderCall = render.bind(renderContext);
 
-  const camera = createCamera(dataMax);
+        await createOrbitControls(camera, view.bottomElement, renderCall);
 
-  const view = new View();
-  const renderer = new WebGLRenderer({canvas: view.canvas});
-  renderer.setSize(width, height);
+        const dataLoader = await NRRDLoader
+            .then((LoaderConstructor) => new LoaderConstructor());
+        console.log('Trying to load the data...');
+        const shapeVolume = await loadAsync(
+            dataLoader,
+            'assets/models/stent.nrrd',
+            notifyProgress.bind(renderContext))
+            .catch((error) => errorOnFileLoad.call(renderContext, error));
 
-  const renderContext = new RenderContext(
-      view,
-      scene,
-      camera,
-      renderer,
-      dataMax);
-  const renderCall = render.bind(renderContext);
-
-  createOrbitControls(camera, view.bottomElement, renderCall);
-
-  const dataLoader = new NRRDLoader();
-  console.log('Trying to load the data...');
-  const shapeVolume = await loadAsync(
-      dataLoader,
-      'assets/models/stent.nrrd',
-      notifyProgress.bind(renderContext))
-      .catch((error) => errorOnFileLoad.call(renderContext, error));
-  const useCuboids = true;
-  let intensityVolume;
-  if (useCuboids) {
-    intensityVolume = createIntensityMapFromCuboids(
-        shapeVolume.xLength,
-        shapeVolume.yLength,
-        shapeVolume.zLength,
-        shapeVolume.xLength,
-        shapeVolume.yLength,
-        shapeVolume.zLength,
-        createCuboids(shapeVolume.xLength, shapeVolume.yLength, shapeVolume.zLength));
-  } else {
-    intensityVolume = createIntensityVolume(
-        shapeVolume.xLength,
-        shapeVolume.yLength,
-        shapeVolume.zLength);
-  }
-
-  console.log(intensityVolume.data);
-
-  if (shapeVolume && intensityVolume) {
-    console.info('Data loaded!');
-    await processData(renderContext, shapeVolume, intensityVolume);
-  }
-
-  renderCall();
-}
-
-async function loadAsync(loader, path, progressCallback) {
-  return new Promise((resolve, reject) => {
-    loader.load(
-        path,
-        (successResponse) => {
-          resolve(successResponse);
-        },
-        progressCallback,
-        (errorResponse) => {
-          reject(errorResponse);
+        const worker = new Worker('./js/workers/VolumeFactory.js', {type: 'module'});
+        worker.postMessage({
+          xLength: shapeVolume.xLength,
+          yLength: shapeVolume.yLength,
+          zLength: shapeVolume.zLength,
+          xSize: shapeVolume.xLength,
+          ySize: shapeVolume.yLength,
+          zSize: shapeVolume.zLength,
+          cuboids: createCuboids(shapeVolume.xLength, shapeVolume.yLength, shapeVolume.zLength),
         });
-  });
-}
+        worker.onmessage = function(event) {
+          console.log(event);
+        };
+        const intensityVolume = VolumeUtils.getIntensityMapFromCuboidCreator(
+            shapeVolume.xLength,
+            shapeVolume.yLength,
+            shapeVolume.zLength,
+            shapeVolume.xLength,
+            shapeVolume.yLength,
+            shapeVolume.zLength,
+            createCuboids(shapeVolume.xLength, shapeVolume.yLength, shapeVolume.zLength))();
 
-function createCuboids(xLength, yLength, zLength) {
-  const xOffset = xLength / 2;
-  const yOffset = yLength / 2;
-  const zOffset = zLength / 2;
+        if (shapeVolume && intensityVolume) {
+          console.info('Data loaded!');
+          await processData(renderContext, shapeVolume, intensityVolume);
+        }
 
-  const full = false;
-  if (full) {
-    return [
-      new Cuboid(0, 0, 0, xLength, yLength, zLength, 1),
-    ];
-  } else {
-    return [
-      new Cuboid(0, 0, 0, xOffset, yOffset, zOffset, 0.75),
-      new Cuboid(xLength - xOffset, yLength - yOffset, 0, xOffset, yOffset, zOffset, 0.25),
-      new Cuboid(xOffset / 2, yOffset, zLength - zOffset, xLength / 2, yLength / 2, zOffset, 1),
-    ];
-  }
-}
+        renderCall();
+      }
 
-function createCamera(dimension) {
-  const camera = new OrthographicCamera();
-  camera.position.set(0, 0, dimension * 2);
-  camera.up.set(0, 0, 1);
-  return camera;
-}
+      async function loadAsync(loader, path, progressCallback) {
+        return new Promise((resolve, reject) => {
+          loader.load(
+              path,
+              (successResponse) => {
+                resolve(successResponse);
+              },
+              progressCallback,
+              (errorResponse) => {
+                reject(errorResponse);
+              });
+        });
+      }
 
-function updateOrthoCamera(camera, dimension, aspect) {
-  const near = 10;
-  const far = 1000;
-  const right = dimension / 2 * aspect;
-  const left = -right;
-  const top = dimension / 2;
-  const bottom = -top;
+      function createCuboids(xLength, yLength, zLength) {
+        const xOffset = xLength / 2;
+        const yOffset = yLength / 2;
+        const zOffset = zLength / 2;
 
-  camera.left = left;
-  camera.right = right;
-  camera.top = top;
-  camera.bottom = bottom;
-  camera.near = near;
-  camera.far = far;
-  camera.aspect = aspect;
-  camera.updateProjectionMatrix();
-}
+        const full = false;
+        if (full) {
+          return [
+            new VolumeUtils.Cuboid(0, 0, 0, xLength, yLength, zLength, 1),
+          ];
+        } else {
+          return [
+            new VolumeUtils.Cuboid(0, 0, 0, xOffset, yOffset, zOffset, 0.75),
+            new VolumeUtils.Cuboid(xLength - xOffset, yLength - yOffset, 0, xOffset, yOffset, zOffset, 0.25),
+            new VolumeUtils.Cuboid(xOffset / 2, yOffset, zLength - zOffset, xLength / 2, yLength / 2, zOffset, 1),
+          ];
+        }
+      }
 
-function createDefaultTextureFromVolume(volume) {
-  return createTextureFromVolume(volume, FloatType, RedFormat);
-}
+      function createCamera(dimension) {
+        const camera = new three.OrthographicCamera();
+        camera.position.set(0, 0, dimension * 2);
+        camera.up.set(0, 0, 1);
+        return camera;
+      }
 
-function createTextureFromVolume(volume, type, format) {
-  const texture = new DataTexture3D(
-      volume.data,
-      volume.xLength,
-      volume.yLength,
-      volume.zLength);
-  texture.type = type;
-  texture.format = format;
-  texture.minFilter = texture.magFilter = LinearFilter;
-  texture.unpackAlignment = 1;
+      function updateOrthoCamera(camera, dimension, aspect) {
+        const near = 10;
+        const far = 1000;
+        const right = dimension / 2 * aspect;
+        const left = -right;
+        const top = dimension / 2;
+        const bottom = -top;
 
-  return texture;
-}
+        camera.left = left;
+        camera.right = right;
+        camera.top = top;
+        camera.bottom = bottom;
+        camera.near = near;
+        camera.far = far;
+        camera.aspect = aspect;
+        camera.updateProjectionMatrix();
+      }
 
-async function processData(renderContext, shapeVolume, intensityVolume) {
-  const textureLoader = new TextureLoader();
-  const viridis = await loadAsync(
-      textureLoader,
-      PathToViridisColormap,
-      notifyProgress.bind(renderContext))
-      .catch((error) => errorOnFileLoad(renderContext, error));
-  const gray = await loadAsync(
-      textureLoader,
-      PathToGrayColormap,
-      notifyProgress.bind(renderContext))
-      .catch((error) => errorOnFileLoad(renderContext, error));
+      function createDefaultTextureFromVolume(volume) {
+        return createTextureFromVolume(volume, three.FloatType, three.RedFormat);
+      }
 
-  if (!(viridis && gray)) {
-    return;
-  }
+      function createTextureFromVolume(volume, type, format) {
+        const texture = new three.DataTexture3D(
+            volume.data,
+            volume.xLength,
+            volume.yLength,
+            volume.zLength);
+        texture.type = type;
+        texture.format = format;
+        texture.minFilter = texture.magFilter = three.LinearFilter;
+        texture.unpackAlignment = 1;
 
-  console.log('Loading shaders...');
-  const shaderLoader = new ShaderLoader();
-  const vertexShader = await loadAsync(
-      shaderLoader,
-      PathToVertexShader,
-      notifyProgress.bind(renderContext))
-      .catch((error) => errorOnFileLoad(renderContext, error));
-  if (vertexShader) {
-    console.log('vertex shader loaded!');
-  }
-  const fragmentShader = await loadAsync(
-      shaderLoader,
-      PathToFragmentShader,
-      notifyProgress.bind(renderContext))
-      .catch((error) => errorOnFileLoad(renderContext, error));
-  if (fragmentShader) {
-    console.log('fragment shader loaded!');
-  }
+        return texture;
+      }
 
-  const shapeBounds = Bounds.fromArray(shapeVolume.data);
-  const intensityBounds = new Bounds(0, 1);
-  const normalsBounds = new Bounds(Uint8MinValue, Uint8MaxValue);
+      async function processData(renderContext, shapeVolume, intensityVolume) {
+        const textureLoader = new three.TextureLoader();
+        const viridis = await loadAsync(
+            textureLoader,
+            constants.PathToViridisColormap,
+            notifyProgress.bind(renderContext))
+            .catch((error) => errorOnFileLoad(renderContext, error));
+        const gray = await loadAsync(
+            textureLoader,
+            constants.PathToGrayColormap,
+            notifyProgress.bind(renderContext))
+            .catch((error) => errorOnFileLoad(renderContext, error));
 
-  const normalsMapVolume = createNormalsMapVolume(shapeVolume, normalsBounds);
+        if (!(viridis && gray)) {
+          return;
+        }
 
-  const shapeTexture = createDefaultTextureFromVolume(shapeVolume);
-  const intensityTexture = createDefaultTextureFromVolume(intensityVolume);
-  const normalsTexture = createTextureFromVolume(
-      normalsMapVolume,
-      UnsignedByteType,
-      RGBFormat);
+        console.log('Loading shaders...');
+        const shaderLoader = new ShaderLoader.ShaderLoader();
+        const vertexShader = await loadAsync(
+            shaderLoader,
+            constants.PathToVertexShader,
+            notifyProgress.bind(renderContext))
+            .catch((error) => errorOnFileLoad(renderContext, error));
+        if (vertexShader) {
+          console.log('vertex shader loaded!');
+        }
+        const fragmentShader = await loadAsync(
+            shaderLoader,
+            constants.PathToFragmentShader,
+            notifyProgress.bind(renderContext))
+            .catch((error) => errorOnFileLoad(renderContext, error));
+        if (fragmentShader) {
+          console.log('fragment shader loaded!');
+        }
 
-  const shapeSize = new Vector3(
-      shapeVolume.xLength,
-      shapeVolume.yLength,
-      shapeVolume.zLength);
-  const intensitySize = new Vector3(
-      intensityVolume.xLength,
-      intensityVolume.yLength,
-      intensityVolume.zLength);
-  const normalsSize = shapeSize;
+        const shapeBounds = lib.Bounds.fromArray(shapeVolume.data);
+        const intensityBounds = new lib.Bounds(0, 1);
+        const normalsBounds = new lib.Bounds(
+            constants.Uint8MinValue,
+            constants.Uint8MaxValue);
 
-  const uniforms = {
-    u_shape_size: {value: shapeSize},
-    u_shape_data: {value: shapeTexture},
-    u_shape_cmdata: {value: gray},
-    u_shape_bounds: {value: shapeBounds.asVector()},
+        const normalsMapVolume = VolumeUtils.getNormalsMapVolumeCreator(shapeVolume, normalsBounds)();
 
-    u_intensity_size: {value: intensitySize},
-    u_intensity_data: {value: intensityTexture},
-    u_intensity_cmdata: {value: viridis},
-    u_intensity_bounds: {value: intensityBounds.asVector()},
+        const shapeTexture = createDefaultTextureFromVolume(shapeVolume);
+        const intensityTexture = createDefaultTextureFromVolume(intensityVolume);
+        const normalsTexture = createTextureFromVolume(
+            normalsMapVolume,
+            three.UnsignedByteType,
+            three.RGBFormat);
 
-    u_normals_size: {value: normalsSize},
-    u_normals_data: {value: normalsTexture},
+        const shapeSize = new three.Vector3(
+            shapeVolume.xLength,
+            shapeVolume.yLength,
+            shapeVolume.zLength);
+        const intensitySize = new three.Vector3(
+            intensityVolume.xLength,
+            intensityVolume.yLength,
+            intensityVolume.zLength);
+        const normalsSize = shapeSize;
 
-    u_renderstyle: {value: RenderStyle.raycast},
+        const uniforms = {
+          u_shape_size: {value: shapeSize},
+          u_shape_data: {value: shapeTexture},
+          u_shape_cmdata: {value: gray},
+          u_shape_bounds: {value: shapeBounds.asVector()},
 
-    u_relative_step_size: {value: 1.0},
-    uniformal_opacity: {value: 1},
-    uniformal_step_opacity: {value: 0.6},
+          u_intensity_size: {value: intensitySize},
+          u_intensity_data: {value: intensityTexture},
+          u_intensity_cmdata: {value: viridis},
+          u_intensity_bounds: {value: intensityBounds.asVector()},
 
-    u_proportional_opacity_enabled: {value: 0},
-    u_lighting_enabled: {value: 1},
+          u_normals_size: {value: normalsSize},
+          u_normals_data: {value: normalsTexture},
 
-    u_scalemode: {value: ScaleMode.linear},
-  };
+          u_renderstyle: {value: lib.RenderStyle.raycast},
 
-  const material = new ShaderMaterial({
-    uniforms: uniforms,
-    vertexShader: vertexShader,
-    fragmentShader: fragmentShader,
-    side: BackSide,
-    transparent: true,
-  });
+          u_relative_step_size: {value: 1.0},
+          uniformal_opacity: {value: 1},
+          uniformal_step_opacity: {value: 0.6},
 
-  const geometry = new BoxBufferGeometry(1, 1, 1);
-  const translate = 0.5;
-  geometry.translate(translate, translate, translate);
-  geometry.scale(shapeSize.x, shapeSize.y, shapeSize.z);
+          u_proportional_opacity_enabled: {value: 0},
+          u_lighting_enabled: {value: 1},
 
-  const mesh = new Mesh(geometry, material);
-  mesh.position.x = -shapeSize.x / 2;
-  mesh.position.y = -shapeSize.y / 2;
-  mesh.position.z = -shapeSize.z / 2;
+          u_scalemode: {value: lib.ScaleMode.linear},
+        };
 
-  renderContext.scene.add(mesh);
-}
+        const material = new three.ShaderMaterial({
+          uniforms: uniforms,
+          vertexShader: vertexShader,
+          fragmentShader: fragmentShader,
+          side: three.BackSide,
+          transparent: true,
+        });
 
-function notifyProgress(progress) {
-  console.log('loaded ' + progress.loaded / progress.total);
-}
+        const geometry = new three.BoxBufferGeometry(1, 1, 1);
+        const translate = 0.5;
+        geometry.translate(translate, translate, translate);
+        geometry.scale(shapeSize.x, shapeSize.y, shapeSize.z);
 
-function errorOnFileLoad(renderContext, error) {
-  console.error(error, renderContext);
-}
+        const mesh = new three.Mesh(geometry, material);
+        mesh.position.x = -shapeSize.x / 2;
+        mesh.position.y = -shapeSize.y / 2;
+        mesh.position.z = -shapeSize.z / 2;
 
-function View() {
-  this.canvas = document.querySelector('#main');
-  this.topElement = document.querySelector('#top');
-  this.bottomElement = document.querySelector('#bottom');
-}
+        renderContext.scene.add(mesh);
+      }
 
-function RenderContext(view, scene, camera, renderer, maxDimension) {
-  this.view = view;
-  this.scene = scene;
-  this.camera = camera;
-  this.maxDimension = maxDimension;
-  this.renderer = renderer;
-}
+      function notifyProgress(progress) {
+        console.log('loaded ' + progress.loaded / progress.total);
+      }
 
-function createOrbitControls(camera, element, renderCall) {
-  const orbitControls = new OrbitControls(camera, element);
-  orbitControls.addEventListener('change', renderCall);
-  orbitControls.minZoom = 0.1;
-  orbitControls.maxZoom = 4.0;
-  orbitControls.update();
-  return orbitControls;
-}
+      function errorOnFileLoad(renderContext, error) {
+        console.error(error, renderContext);
+      }
 
-function setScissorForElement(element) {
-  const canvasRectangle = this.view.canvas.getBoundingClientRect();
-  const elementRectangle = element.getBoundingClientRect();
+      function View() {
+        this.canvas = document.querySelector('#main');
+        this.topElement = document.querySelector('#top');
+        this.bottomElement = document.querySelector('#bottom');
+      }
 
-  const right = Math.min(elementRectangle.right, canvasRectangle.right) -
-        canvasRectangle.left;
-  const left = Math.max(0, elementRectangle.left - canvasRectangle.left);
-  const bottom = Math.min(elementRectangle.bottom, canvasRectangle.bottom) -
-        canvasRectangle.top;
-  const top = Math.max(0, elementRectangle.top - canvasRectangle.top);
+      function RenderContext(view, scene, camera, renderer, maxDimension) {
+        this.view = view;
+        this.scene = scene;
+        this.camera = camera;
+        this.maxDimension = maxDimension;
+        this.renderer = renderer;
+      }
 
-  const width = Math.min(canvasRectangle.width, right - left);
-  const height = Math.min(canvasRectangle.height, bottom - top);
+      async function createOrbitControls(camera, element, renderCall) {
+        const orbitControls = await OrbitControls
+            .then((ControlConstructor) => new ControlConstructor(camera, element));
+        orbitControls.addEventListener('change', renderCall);
+        orbitControls.minZoom = 0.1;
+        orbitControls.maxZoom = 4.0;
+        orbitControls.update();
+        return orbitControls;
+      }
 
-  const positiveYUpBottom = canvasRectangle.height - bottom;
-  this.renderer.setScissor(left, positiveYUpBottom, width, height);
-  this.renderer.setViewport(left, positiveYUpBottom, width, height);
+      function setScissorForElement(element) {
+        const canvasRectangle = this.view.canvas.getBoundingClientRect();
+        const elementRectangle = element.getBoundingClientRect();
 
-  return width / height;
-}
+        const right = Math.min(elementRectangle.right, canvasRectangle.right) -
+              canvasRectangle.left;
+        const left = Math.max(0, elementRectangle.left - canvasRectangle.left);
+        const bottom = Math.min(elementRectangle.bottom, canvasRectangle.bottom) -
+              canvasRectangle.top;
+        const top = Math.max(0, elementRectangle.top - canvasRectangle.top);
 
-function render() {
-  this.renderer.setScissorTest(true);
+        const width = Math.min(canvasRectangle.width, right - left);
+        const height = Math.min(canvasRectangle.height, bottom - top);
 
-  {
-    const aspect = setScissorForElement.call(this, this.view.bottomElement);
-    updateOrthoCamera(this.camera, this.maxDimension, aspect);
-    this.scene.background.set(MainCameraBackgroundColor);
-    this.renderer.render(this.scene, this.camera);
-  }
-}
+        const positiveYUpBottom = canvasRectangle.height - bottom;
+        this.renderer.setScissor(left, positiveYUpBottom, width, height);
+        this.renderer.setViewport(left, positiveYUpBottom, width, height);
+
+        return width / height;
+      }
+
+      function render() {
+        this.renderer.setScissorTest(true);
+
+        {
+          const aspect = setScissorForElement.call(this, this.view.bottomElement);
+          updateOrthoCamera(this.camera, this.maxDimension, aspect);
+          this.scene.background.set(constants.MainCameraBackgroundColor);
+          this.renderer.render(this.scene, this.camera);
+        }
+      }
+
+      run();
+    },
+);
