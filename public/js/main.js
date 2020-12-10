@@ -1,6 +1,7 @@
 define(
     [
       'three',
+      'context',
       'orbitControls',
       'nrrdLoader',
       'shaderLoader',
@@ -8,7 +9,7 @@ define(
       'lib',
       'constants',
     ],
-    function(three, OrbitControls, NRRDLoader, ShaderLoader, VolumeUtils, lib, constants) {
+    function(three, context, OrbitControls, NRRDLoader, ShaderLoader, VolumeUtils, lib, constants) {
     // 2. Use workers for remapping and normal compute.
     // 3. Move all options into separate container (RenderingSettings).
     //    Add background to options.
@@ -42,53 +43,20 @@ define(
 
         await createOrbitControls(camera, view.bottomElement, renderCall);
 
-        const dataLoader = await NRRDLoader
+        const nrrdLoader = await NRRDLoader
             .then((LoaderConstructor) => new LoaderConstructor());
         console.log('Trying to load the data...');
         const shapeVolume = await loadAsync(
-            dataLoader,
+            nrrdLoader,
             'assets/models/stent.nrrd',
             notifyProgress.bind(renderContext))
+            .then((volume) => new VolumeUtils.Volume(
+                volume.data, volume.xLength, volume.yLength, volume.zLength))
             .catch((error) => errorOnFileLoad.call(renderContext, error));
 
-        const worker = new Worker('./js/workers/VolumeFactory.js', {type: 'module'});
-        worker.postMessage({
-          xLength: shapeVolume.xLength,
-          yLength: shapeVolume.yLength,
-          zLength: shapeVolume.zLength,
-          xSize: shapeVolume.xLength,
-          ySize: shapeVolume.yLength,
-          zSize: shapeVolume.zLength,
-          cuboids: createCuboids(shapeVolume.xLength, shapeVolume.yLength, shapeVolume.zLength),
-        });
-        worker.onmessage = function(event) {
-          if (event.data.ready) {
-            console.log(event.data);
-          } else {
-            console.log(event.data);
-            worker.postMessage({
-              xLength: shapeVolume.xLength,
-              yLength: shapeVolume.yLength,
-              zLength: shapeVolume.zLength,
-              xSize: shapeVolume.xLength,
-              ySize: shapeVolume.yLength,
-              zSize: shapeVolume.zLength,
-              cuboids: createCuboids(shapeVolume.xLength, shapeVolume.yLength, shapeVolume.zLength),
-            });
-          }
-        };
-        const intensityVolume = VolumeUtils.getIntensityMapFromCuboidCreator(
-            shapeVolume.xLength,
-            shapeVolume.yLength,
-            shapeVolume.zLength,
-            shapeVolume.xLength,
-            shapeVolume.yLength,
-            shapeVolume.zLength,
-            createCuboids(shapeVolume.xLength, shapeVolume.yLength, shapeVolume.zLength))();
-
-        if (shapeVolume && intensityVolume) {
+        if (shapeVolume) {
           console.info('Data loaded!');
-          await processData(renderContext, shapeVolume, intensityVolume);
+          await processData(renderContext, renderCall, shapeVolume);
         }
 
         renderCall();
@@ -106,25 +74,6 @@ define(
                 reject(errorResponse);
               });
         });
-      }
-
-      function createCuboids(xLength, yLength, zLength) {
-        const xOffset = xLength / 2;
-        const yOffset = yLength / 2;
-        const zOffset = zLength / 2;
-
-        const full = false;
-        if (full) {
-          return [
-            new VolumeUtils.Cuboid(0, 0, 0, xLength, yLength, zLength, 1),
-          ];
-        } else {
-          return [
-            new VolumeUtils.Cuboid(0, 0, 0, xOffset, yOffset, zOffset, 0.75),
-            new VolumeUtils.Cuboid(xLength - xOffset, yLength - yOffset, 0, xOffset, yOffset, zOffset, 0.25),
-            new VolumeUtils.Cuboid(xOffset / 2, yOffset, zLength - zOffset, xLength / 2, yLength / 2, zOffset, 1),
-          ];
-        }
       }
 
       function createCamera(dimension) {
@@ -170,7 +119,7 @@ define(
         return texture;
       }
 
-      async function processData(renderContext, shapeVolume, intensityVolume) {
+      async function processData(renderContext, renderCall, shapeVolume) {
         const textureLoader = new three.TextureLoader();
         const viridis = await loadAsync(
             textureLoader,
@@ -212,70 +161,73 @@ define(
             constants.Uint8MinValue,
             constants.Uint8MaxValue);
 
-        const normalsMapVolume = VolumeUtils.getNormalsMapVolumeCreator(shapeVolume, normalsBounds)();
+        const dataLoader = new context.DataLoader(shapeVolume, normalsBounds);
+        dataLoader.start((intensityVolume, normalsMapVolume) => {
+          const shapeTexture = createDefaultTextureFromVolume(shapeVolume);
+          const intensityTexture = createDefaultTextureFromVolume(intensityVolume);
+          const normalsTexture = createTextureFromVolume(
+              normalsMapVolume,
+              three.UnsignedByteType,
+              three.RGBFormat);
 
-        const shapeTexture = createDefaultTextureFromVolume(shapeVolume);
-        const intensityTexture = createDefaultTextureFromVolume(intensityVolume);
-        const normalsTexture = createTextureFromVolume(
-            normalsMapVolume,
-            three.UnsignedByteType,
-            three.RGBFormat);
+          const shapeSize = new three.Vector3(
+              shapeVolume.xLength,
+              shapeVolume.yLength,
+              shapeVolume.zLength);
+          const intensitySize = new three.Vector3(
+              intensityVolume.xLength,
+              intensityVolume.yLength,
+              intensityVolume.zLength);
+          const normalsSize = shapeSize;
 
-        const shapeSize = new three.Vector3(
-            shapeVolume.xLength,
-            shapeVolume.yLength,
-            shapeVolume.zLength);
-        const intensitySize = new three.Vector3(
-            intensityVolume.xLength,
-            intensityVolume.yLength,
-            intensityVolume.zLength);
-        const normalsSize = shapeSize;
+          const uniforms = {
+            u_shape_size: {value: shapeSize},
+            u_shape_data: {value: shapeTexture},
+            u_shape_cmdata: {value: gray},
+            u_shape_bounds: {value: shapeBounds.asVector()},
 
-        const uniforms = {
-          u_shape_size: {value: shapeSize},
-          u_shape_data: {value: shapeTexture},
-          u_shape_cmdata: {value: gray},
-          u_shape_bounds: {value: shapeBounds.asVector()},
+            u_intensity_size: {value: intensitySize},
+            u_intensity_data: {value: intensityTexture},
+            u_intensity_cmdata: {value: viridis},
+            u_intensity_bounds: {value: intensityBounds.asVector()},
 
-          u_intensity_size: {value: intensitySize},
-          u_intensity_data: {value: intensityTexture},
-          u_intensity_cmdata: {value: viridis},
-          u_intensity_bounds: {value: intensityBounds.asVector()},
+            u_normals_size: {value: normalsSize},
+            u_normals_data: {value: normalsTexture},
 
-          u_normals_size: {value: normalsSize},
-          u_normals_data: {value: normalsTexture},
+            u_renderstyle: {value: lib.RenderStyle.raycast},
 
-          u_renderstyle: {value: lib.RenderStyle.raycast},
+            u_relative_step_size: {value: 1.0},
+            uniformal_opacity: {value: 1},
+            uniformal_step_opacity: {value: 0.6},
 
-          u_relative_step_size: {value: 1.0},
-          uniformal_opacity: {value: 1},
-          uniformal_step_opacity: {value: 0.6},
+            u_proportional_opacity_enabled: {value: 0},
+            u_lighting_enabled: {value: 1},
 
-          u_proportional_opacity_enabled: {value: 0},
-          u_lighting_enabled: {value: 1},
+            u_scalemode: {value: lib.ScaleMode.linear},
+          };
 
-          u_scalemode: {value: lib.ScaleMode.linear},
-        };
+          const material = new three.ShaderMaterial({
+            uniforms: uniforms,
+            vertexShader: vertexShader,
+            fragmentShader: fragmentShader,
+            side: three.BackSide,
+            transparent: true,
+          });
 
-        const material = new three.ShaderMaterial({
-          uniforms: uniforms,
-          vertexShader: vertexShader,
-          fragmentShader: fragmentShader,
-          side: three.BackSide,
-          transparent: true,
+          const geometry = new three.BoxBufferGeometry(1, 1, 1);
+          const translate = 0.5;
+          geometry.translate(translate, translate, translate);
+          geometry.scale(shapeSize.x, shapeSize.y, shapeSize.z);
+
+          const mesh = new three.Mesh(geometry, material);
+          mesh.position.x = -shapeSize.x / 2;
+          mesh.position.y = -shapeSize.y / 2;
+          mesh.position.z = -shapeSize.z / 2;
+
+          renderContext.scene.add(mesh);
+          console.log(renderContext);
+          renderCall();
         });
-
-        const geometry = new three.BoxBufferGeometry(1, 1, 1);
-        const translate = 0.5;
-        geometry.translate(translate, translate, translate);
-        geometry.scale(shapeSize.x, shapeSize.y, shapeSize.z);
-
-        const mesh = new three.Mesh(geometry, material);
-        mesh.position.x = -shapeSize.x / 2;
-        mesh.position.y = -shapeSize.y / 2;
-        mesh.position.z = -shapeSize.z / 2;
-
-        renderContext.scene.add(mesh);
       }
 
       function notifyProgress(progress) {
