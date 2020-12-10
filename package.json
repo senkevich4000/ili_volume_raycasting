@@ -4,7 +4,7 @@
   "description": "ili volume raycasting",
   "main": "index.js",
   "scripts": {
-    "preinstall": "npm install --prefix ./public/js three",
+    "preinstall": "npm install --prefix ./public/js three requirejs",
     "test": "jest --clearCache && jest"
   },
   "repository": {
