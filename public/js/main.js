@@ -28,7 +28,9 @@ define(
         const renderer = new three.WebGLRenderer({canvas: view.canvas});
         renderer.setSize(width, height);
 
+        const settings = new lib.VolumeRenderingSettings();
         const renderContext = new RenderContext(
+            settings,
             view,
             scene,
             camera,
@@ -118,12 +120,12 @@ define(
         const textureLoader = new three.TextureLoader();
         const viridis = await loadAsync(
             textureLoader,
-            constants.PathToViridisColormap,
+            renderContext.settings.intensityColormapName,
             notifyProgress.bind(renderContext))
             .catch((error) => errorOnFileLoad(renderContext, error));
         const gray = await loadAsync(
             textureLoader,
-            constants.PathToGrayColormap,
+            renderContext.settings.shapeColormapName,
             notifyProgress.bind(renderContext))
             .catch((error) => errorOnFileLoad(renderContext, error));
 
@@ -200,16 +202,16 @@ define(
               three.UnsignedByteType,
               three.RGBFormat)},
 
-          u_renderstyle: {value: lib.RenderStyle.raycast},
+          u_renderstyle: {value: renderContext.settings.renderStyle},
 
-          u_relative_step_size: {value: 1.0},
-          uniformal_opacity: {value: 1},
-          uniformal_step_opacity: {value: 0.6},
+          u_relative_step_size: {value: renderContext.settings.relativeStepSize},
+          uniformal_opacity: {value: renderContext.settings.uniformalOpacity},
+          uniformal_step_opacity: {value: renderContext.settings.uniformalStepOpacity},
 
-          u_proportional_opacity_enabled: {value: 0},
-          u_lighting_enabled: {value: 1},
+          u_proportional_opacity_enabled: {value: renderContext.settings.proportionalOpacityEnabled},
+          u_lighting_enabled: {value: renderContext.settings.lightingEnabled},
 
-          u_scalemode: {value: lib.ScaleMode.linear},
+          u_scalemode: {value: renderContext.settings.scaleMode},
         };
 
         const material = new three.ShaderMaterial({
@@ -266,7 +268,8 @@ define(
         this.bottomElement = document.querySelector('#bottom');
       }
 
-      function RenderContext(view, scene, camera, renderer, maxDimension) {
+      function RenderContext(settings, view, scene, camera, renderer, maxDimension) {
+        this.settings = settings;
         this.view = view;
         this.scene = scene;
         this.camera = camera;
@@ -318,14 +321,12 @@ define(
         const height = Math.min(canvasRectangle.height, bottom - top);
 
         const positiveYUpBottom = canvasRectangle.height - bottom;
-        this.renderer.setScissor(left, positiveYUpBottom, width, height);
         this.renderer.setViewport(left, positiveYUpBottom, width, height);
 
         return width / height;
       }
 
       function render() {
-        this.renderer.setScissorTest(true);
         const aspect = setScissorForElement.call(this, this.view.bottomElement);
         updateOrthoCamera(this.camera, this.maxDimension, aspect);
         this.scene.background.set(constants.MainCameraBackgroundColor);

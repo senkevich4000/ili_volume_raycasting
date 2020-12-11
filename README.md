@@ -13,4 +13,7 @@ To run the server use ```node index.js``` or ```make```
 * Move all options into separate container (Settings). Add background to options.
 * Think about serialization.
 * DataLoader should also load shape volume.
-* Code refactoring required. DataLoader and VolumeUtils should have consistent infrastructure.
+* Code refactoring required. 
+    * DataLoader and VolumeUtils should have consistent infrastructure.
+    * Add errors handling.
+* Add comments!

@@ -1,4 +1,4 @@
-define(['three'], function(three) {
+define(['three', 'constants'], function(three, constants) {
   function Bounds(min, max) {
     this.min = min;
     this.max = max;
@@ -17,22 +17,10 @@ define(['three'], function(three) {
     return new Bounds(min, max);
 
     function minCompare(left, right) {
-      if (isNaN(left)) {
-        return right;
-      }
-      if (isNaN(right)) {
-        return left;
-      }
       return left < right ? left : right;
     }
 
     function maxCompare(left, right) {
-      if (isNaN(left)) {
-        return right;
-      }
-      if (isNaN(right)) {
-        return left;
-      }
       return left > right ? left : right;
     }
   };
@@ -50,5 +38,23 @@ define(['three'], function(three) {
   };
   Object.freeze(ScaleMode);
 
-  return {Bounds, RenderStyle, ScaleMode};
+  function VolumeRenderingSettings() {
+    this.shapeColormapName = constants.PathToGrayColormap;
+    this.intensityColormapName = constants.PathToViridisColormap;
+
+    this.renderStyle = RenderStyle.raycast;
+    this.scaleMode = ScaleMode.linear;
+
+    this.relativeStepSize = 1.0;
+    this.uniformalOpacity = 1.0;
+    this.uniformalStepOpacity = 0.6;
+    this.proportionalOpacityEnabled = 1;
+    this.lightingEnabled = 1;
+
+    this.backgroundColor = constants.MainCameraBackgroundColor;
+
+    return this;
+  }
+
+  return {Bounds, RenderStyle, ScaleMode, VolumeRenderingSettings};
 });
