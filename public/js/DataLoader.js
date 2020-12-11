@@ -14,18 +14,17 @@ define(['three', 'volumeUtils'], function(three, volumeUtils) {
     return this;
   }
 
-  DataLoader.prototype.start = function(onready) {
-    this.onready = onready;
+  DataLoader.prototype.start = function(onIntensityMapCalculated, onNormalsMapCalculated) {
+    this.onIntensityMapCalculated = onIntensityMapCalculated;
+    this.onNormalsMapCalculated = onNormalsMapCalculated;
     this.tryPostMessageToIntensityMapWorker();
     this.tryPostMessageToNormalsMapWorker();
   };
 
-  DataLoader.prototype.onready = function(intensityMap, normalsMap) {};
-
   DataLoader.prototype.onIntensntyMapWorkerMessage = function(event) {
     if (event.data.ready) {
-      this.intensityMap = event.data.volume;
-      this.ready();
+      this.intensityMapCalculator.volume = event.data.volume;
+      this.onIntensityMapCalculated();
     } else {
       this.tryPostMessageToIntensityMapWorker();
     }
@@ -33,16 +32,10 @@ define(['three', 'volumeUtils'], function(three, volumeUtils) {
 
   DataLoader.prototype.onNormalsMapWorkerMessage = function(event) {
     if (event.data.ready) {
-      this.normalsMap = event.data.volume;
-      this.ready();
+      this.normalsMapCalculator.volume = event.data.volume;
+      this.onNormalsMapCalculated();
     } else {
       this.tryPostMessageToNormalsMapWorker();
-    }
-  };
-
-  DataLoader.prototype.ready = function() {
-    if (this.intensityMap && this.normalsMap) {
-      this.onready(this.intensityMap, this.normalsMap);
     }
   };
 

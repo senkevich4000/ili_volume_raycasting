@@ -170,71 +170,86 @@ define(
         const dataLoader = new DataLoader.DataLoader(
             intensityMapCalculator,
             normalsMapCalculator);
-        dataLoader.start((intensityVolume, normalsMapVolume) => {
-          const shapeTexture = createDefaultTextureFromVolume(shapeVolume);
-          const intensityTexture = createDefaultTextureFromVolume(intensityVolume);
-          const normalsTexture = createTextureFromVolume(
-              normalsMapVolume,
+
+        const shapeTexture = createDefaultTextureFromVolume(shapeVolume);
+
+        const shapeSize = new three.Vector3(
+            shapeVolume.xLength,
+            shapeVolume.yLength,
+            shapeVolume.zLength);
+        const intensitySize = new three.Vector3(
+            intensityMapCalculator.volume.xLength,
+            intensityMapCalculator.volume.yLength,
+            intensityMapCalculator.volume.zLength);
+        const normalsSize = shapeSize;
+
+        const uniforms = {
+          u_shape_size: {value: shapeSize},
+          u_shape_data: {value: shapeTexture},
+          u_shape_cmdata: {value: gray},
+          u_shape_bounds: {value: shapeBounds.asVector()},
+
+          u_intensity_size: {value: intensitySize},
+          u_intensity_data: {value: createDefaultTextureFromVolume(intensityMapCalculator.volume)},
+          u_intensity_cmdata: {value: viridis},
+          u_intensity_bounds: {value: intensityBounds.asVector()},
+
+          u_normals_size: {value: normalsSize},
+          u_normals_data: {value: createTextureFromVolume(
+              normalsMapCalculator.volume,
+              three.UnsignedByteType,
+              three.RGBFormat)},
+
+          u_renderstyle: {value: lib.RenderStyle.raycast},
+
+          u_relative_step_size: {value: 1.0},
+          uniformal_opacity: {value: 1},
+          uniformal_step_opacity: {value: 0.6},
+
+          u_proportional_opacity_enabled: {value: 0},
+          u_lighting_enabled: {value: 1},
+
+          u_scalemode: {value: lib.ScaleMode.linear},
+        };
+
+        const material = new three.ShaderMaterial({
+          uniforms: uniforms,
+          vertexShader: vertexShader,
+          fragmentShader: fragmentShader,
+          side: three.BackSide,
+          transparent: true,
+        });
+
+        const geometry = new three.BoxBufferGeometry(1, 1, 1);
+        const translate = 0.5;
+        geometry.translate(translate, translate, translate);
+        geometry.scale(shapeSize.x, shapeSize.y, shapeSize.z);
+
+        const mesh = new three.Mesh(geometry, material);
+        mesh.position.x = -shapeSize.x / 2;
+        mesh.position.y = -shapeSize.y / 2;
+        mesh.position.z = -shapeSize.z / 2;
+
+        renderContext.scene.add(mesh);
+        renderCall();
+
+        dataLoader.start(
+            processIntensityMap.bind(this),
+            processNormalsMap.bind(this));
+
+        function processIntensityMap() {
+          uniforms.u_intensity_data.value = createDefaultTextureFromVolume(
+              intensityMapCalculator.volume),
+          renderCall();
+        }
+
+        function processNormalsMap() {
+          uniforms.u_normals_data.value = createTextureFromVolume(
+              normalsMapCalculator.volume,
               three.UnsignedByteType,
               three.RGBFormat);
-
-          const shapeSize = new three.Vector3(
-              shapeVolume.xLength,
-              shapeVolume.yLength,
-              shapeVolume.zLength);
-          const intensitySize = new three.Vector3(
-              intensityVolume.xLength,
-              intensityVolume.yLength,
-              intensityVolume.zLength);
-          const normalsSize = shapeSize;
-
-          const uniforms = {
-            u_shape_size: {value: shapeSize},
-            u_shape_data: {value: shapeTexture},
-            u_shape_cmdata: {value: gray},
-            u_shape_bounds: {value: shapeBounds.asVector()},
-
-            u_intensity_size: {value: intensitySize},
-            u_intensity_data: {value: intensityTexture},
-            u_intensity_cmdata: {value: viridis},
-            u_intensity_bounds: {value: intensityBounds.asVector()},
-
-            u_normals_size: {value: normalsSize},
-            u_normals_data: {value: normalsTexture},
-
-            u_renderstyle: {value: lib.RenderStyle.raycast},
-
-            u_relative_step_size: {value: 1.0},
-            uniformal_opacity: {value: 1},
-            uniformal_step_opacity: {value: 0.6},
-
-            u_proportional_opacity_enabled: {value: 0},
-            u_lighting_enabled: {value: 1},
-
-            u_scalemode: {value: lib.ScaleMode.linear},
-          };
-
-          const material = new three.ShaderMaterial({
-            uniforms: uniforms,
-            vertexShader: vertexShader,
-            fragmentShader: fragmentShader,
-            side: three.BackSide,
-            transparent: true,
-          });
-
-          const geometry = new three.BoxBufferGeometry(1, 1, 1);
-          const translate = 0.5;
-          geometry.translate(translate, translate, translate);
-          geometry.scale(shapeSize.x, shapeSize.y, shapeSize.z);
-
-          const mesh = new three.Mesh(geometry, material);
-          mesh.position.x = -shapeSize.x / 2;
-          mesh.position.y = -shapeSize.y / 2;
-          mesh.position.z = -shapeSize.z / 2;
-
-          renderContext.scene.add(mesh);
           renderCall();
-        });
+        }
       }
 
       function notifyProgress(progress) {
