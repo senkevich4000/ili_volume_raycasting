@@ -1,20 +1,15 @@
 define(
     [
       'three',
-      'context',
       'orbitControls',
+      'dataLoader',
       'nrrdLoader',
       'shaderLoader',
       'volumeUtils',
       'lib',
       'constants',
     ],
-    function(three, context, OrbitControls, NRRDLoader, ShaderLoader, VolumeUtils, lib, constants) {
-    // 2. Use workers for remapping and normal compute.
-    // 3. Move all options into separate container (RenderingSettings).
-    //    Add background to options.
-    // 4. Think about serialization.
-
+    function(three, OrbitControls, DataLoader, NRRDLoader, ShaderLoader, VolumeUtils, lib, constants) {
       async function run() {
         const width = window.innerWidth;
         const height = window.innerHeight;
@@ -161,7 +156,20 @@ define(
             constants.Uint8MinValue,
             constants.Uint8MaxValue);
 
-        const dataLoader = new context.DataLoader(shapeVolume, normalsBounds);
+        const normalsMapCalculator = new VolumeUtils.NormalsMapCalculator(
+            shapeVolume,
+            normalsBounds);
+        const intensityMapCalculator = new VolumeUtils.IntencityMapFromCuboidsCalculator(
+            shapeVolume.xLength,
+            shapeVolume.yLength,
+            shapeVolume.zLength,
+            shapeVolume.xLength,
+            shapeVolume.yLength,
+            shapeVolume.zLength,
+            createCuboids(shapeVolume.xLength, shapeVolume.yLength, shapeVolume.zLength));
+        const dataLoader = new DataLoader.DataLoader(
+            intensityMapCalculator,
+            normalsMapCalculator);
         dataLoader.start((intensityVolume, normalsMapVolume) => {
           const shapeTexture = createDefaultTextureFromVolume(shapeVolume);
           const intensityTexture = createDefaultTextureFromVolume(intensityVolume);
@@ -259,6 +267,25 @@ define(
         orbitControls.maxZoom = 4.0;
         orbitControls.update();
         return orbitControls;
+      }
+
+      function createCuboids(xLength, yLength, zLength) {
+        const xOffset = xLength / 2;
+        const yOffset = yLength / 2;
+        const zOffset = zLength / 2;
+
+        const full = false;
+        if (full) {
+          return [
+            new VolumeUtils.Cuboid(0, 0, 0, xLength, yLength, zLength, 1),
+          ];
+        } else {
+          return [
+            new VolumeUtils.Cuboid(0, 0, 0, xOffset, yOffset, zOffset, 0.75),
+            new VolumeUtils.Cuboid(xLength - xOffset, yLength - yOffset, 0, xOffset, yOffset, zOffset, 0.25),
+            new VolumeUtils.Cuboid(xOffset / 2, yOffset, zLength - zOffset, xLength / 2, yLength / 2, zOffset, 1),
+          ];
+        }
       }
 
       function setScissorForElement(element) {

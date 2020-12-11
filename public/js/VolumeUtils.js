@@ -41,7 +41,7 @@ define(function() {
     return this;
   }
 
-  function getIntensityMapFromCuboidCreator(
+  function IntencityMapFromCuboidsCalculator(
       xLength,
       yLength,
       zLength,
@@ -49,33 +49,42 @@ define(function() {
       ySize,
       zSize,
       cuboids) {
-    return () => createIntensityMapFromCuboids(
+    const result = new Float32Array(xLength * yLength * zLength);
+    result.fill(Number.NaN); // Fake value that indiates that voxel should not be colored.
+    this.volume = new SizedVolume(
+        result,
         xLength,
         yLength,
         zLength,
         xSize,
         ySize,
-        zSize,
-        cuboids);
+        zSize);
+
+    this.cuboids = cuboids;
+    this.calculated = false;
   }
 
-  function createIntensityMapFromCuboids(
-      xLength,
-      yLength,
-      zLength,
-      xSize,
-      ySize,
-      zSize,
-      cuboids) {
+  function calculateIntensityMapFromCuboids(source) {
+    if (source.calculated) {
+      return;
+    }
+
+    const xLength = source.volume.xLength;
+    const yLength = source.volume.yLength;
+    const zLength = source.volume.zLength;
+
+    const xSize = source.volume.xSize;
+    const ySize = source.volume.ySize;
+    const zSize = source.volume.zSize;
+
     const xStep = getStep(xLength, xSize);
     const yStep = getStep(yLength, ySize);
     const zStep = getStep(zLength, zSize);
 
-    const result = new Float32Array(xLength * yLength * zLength);
-    result.fill(Number.NaN); // Fake value that indiates that voxel should not be colored.
     const resultIndexer = new Indexer1D(xLength, yLength, zLength);
+    const result = source.volume.data;
 
-    cuboids.forEach((cuboid) => {
+    source.cuboids.forEach((cuboid) => {
       const xStartIndex = Math.floor(getIndex(cuboid.xPivot, xStep, xLength));
       const yStartIndex = Math.floor(getIndex(cuboid.yPivot, yStep, yLength));
       const zStartIndex = Math.floor(getIndex(cuboid.zPivot, zStep, zLength));
@@ -101,8 +110,7 @@ define(function() {
         }
       }
     });
-
-    return new Volume(result, xLength, yLength, zLength);
+    source.calculated = true;
 
     function getStep(length, size) {
       return size / length;
@@ -127,20 +135,40 @@ define(function() {
     }
   }
 
-  function getNormalsMapVolumeCreator(volume, bounds) {
-    return () => createNormalsMapVolume(volume, bounds);
+  function NormalsMapCalculator(inputVolume, bounds) {
+    this.inputVolume = inputVolume;
+    this.bounds = bounds;
+
+    const length = inputVolume.xLength * inputVolume.yLength * inputVolume.zLength * 3;
+    const result = new Uint8Array(length);
+
+    this.volume = new Volume(
+        result,
+        inputVolume.xLength,
+        inputVolume.yLength,
+        inputVolume.zLength);
+
+    this.calculated = false;
+
+    return this;
   }
 
-  function createNormalsMapVolume(volume, bounds) {
-    const xLength = volume.xLength;
-    const yLength = volume.yLength;
-    const zLength = volume.zLength;
+  function calculateNormalsMap(source) {
+    if (source.calculated) {
+      return;
+    }
+    const xLength = source.inputVolume.xLength;
+    const yLength = source.inputVolume.yLength;
+    const zLength = source.inputVolume.zLength;
 
     const inputIndexer = new Indexer1D(xLength, yLength, zLength);
-    const input = volume.data;
+    const input = source.inputVolume.data;
 
-    const resultIndexer = new Indexer1D(xLength, yLength, zLength * 3);
-    const result = new Uint8Array(resultIndexer.length);
+    const result = source.volume.data;
+    const resultIndexer = new Indexer1D(
+        source.inputVolume.xLength,
+        source.inputVolume.yLength,
+        source.inputVolume.zLength * 3);
 
     for (let xIndex = 0; xIndex < xLength; ++xIndex) {
       for (let yIndex = 0; yIndex < yLength; ++yIndex) {
@@ -157,8 +185,7 @@ define(function() {
         }
       }
     }
-
-    return new Volume(result, xLength, yLength, zLength);
+    source.calculated = true;
 
     function calculateNormal(input, indexer, xIndex, yIndex, zIndex, output, outputIndex) {
       const leftXValue = input[indexer.getXClipped(xIndex - 1, yIndex, zIndex)];
@@ -176,9 +203,9 @@ define(function() {
 
       const vectorLength = Math.sqrt(xRange * xRange + yRange * yRange + zRange * zRange);
 
-      output[outputIndex] = mapRange(xRange, vectorLength, bounds);
-      output[outputIndex + 1] = mapRange(yRange, vectorLength, bounds);
-      output[outputIndex + 2] = mapRange(zRange, vectorLength, bounds);
+      output[outputIndex] = mapRange(xRange, vectorLength, source.bounds);
+      output[outputIndex + 1] = mapRange(yRange, vectorLength, source.bounds);
+      output[outputIndex + 2] = mapRange(zRange, vectorLength, source.bounds);
 
       function mapRange(range, length, bounds) {
         return map(range / length, 0, 1, bounds.min, bounds.max);
@@ -229,7 +256,9 @@ define(function() {
     Volume,
     SizedVolume,
     Cuboid,
-    getNormalsMapVolumeCreator,
-    getIntensityMapFromCuboidCreator,
+    NormalsMapCalculator,
+    calculateNormalsMap,
+    IntencityMapFromCuboidsCalculator,
+    calculateIntensityMapFromCuboids,
   };
 });

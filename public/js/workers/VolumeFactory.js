@@ -7,16 +7,8 @@ require(
     ['VolumeUtils'],
     function(VolumeUtils) {
       onmessage = function(event) {
-        const info = event.data;
-        const result = VolumeUtils.getIntensityMapFromCuboidCreator(
-            info.xLength,
-            info.yLength,
-            info.zLength,
-            info.xLength,
-            info.yLength,
-            info.zLength,
-            info.cuboids)();
-        postMessage({ready: true, volume: result});
+        VolumeUtils.calculateIntensityMapFromCuboids(event.data.calculator);
+        postMessage({ready: true, volume: event.data.calculator.volume});
       };
       postMessage({ready: false});
     },

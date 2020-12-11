@@ -4,7 +4,7 @@ requirejs.config({
     'three': 'node_modules/three/build/three',
     'orbitControls': 'adapters/OrbitControl',
     'nrrdLoader': 'adapters/NRRDLoader',
-    'context': 'RenderContext',
+    'dataLoader': 'DataLoader',
     'shaderLoader': 'ShaderLoader',
     'volumeUtils': 'VolumeUtils',
     'lib': 'lib',
