@@ -1,20 +1,4 @@
 define(['three', 'volumeUtils'], function(three, volumeUtils) {
-  function RenderContext(view, scene, camera, renderer, maxDimension) {
-    this.view = view;
-    this.scene = scene;
-    this.camera = camera;
-    this.maxDimension = maxDimension;
-    this.renderer = renderer;
-
-    RenderContext.prototype.render = function() {
-      this.renderer.setScissorTest(true);
-      const aspect = setScissorForElement.call(this, this.view.bottomElement);
-      updateOrthoCamera(this.camera, this.maxDimension, aspect);
-      this.scene.background.set(constants.MainCameraBackgroundColor);
-      this.renderer.render(this.scene, this.camera);
-    };
-  }
-
   function DataLoader(shapeVolume, normalsBounds) {
     this.shapeVolume = shapeVolume;
     this.normalsBounds = normalsBounds;
@@ -101,6 +85,6 @@ define(['three', 'volumeUtils'], function(three, volumeUtils) {
     }
   };
 
-  return {RenderContext, DataLoader};
+  return {DataLoader};
 });
 

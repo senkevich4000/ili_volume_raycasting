@@ -284,13 +284,10 @@ define(
 
       function render() {
         this.renderer.setScissorTest(true);
-
-        {
-          const aspect = setScissorForElement.call(this, this.view.bottomElement);
-          updateOrthoCamera(this.camera, this.maxDimension, aspect);
-          this.scene.background.set(constants.MainCameraBackgroundColor);
-          this.renderer.render(this.scene, this.camera);
-        }
+        const aspect = setScissorForElement.call(this, this.view.bottomElement);
+        updateOrthoCamera(this.camera, this.maxDimension, aspect);
+        this.scene.background.set(constants.MainCameraBackgroundColor);
+        this.renderer.render(this.scene, this.camera);
       }
 
       run();
