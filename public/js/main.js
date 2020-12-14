@@ -6,10 +6,20 @@ define(
       'nrrdLoader',
       'shaderLoader',
       'volumeUtils',
+      'uniforms',
       'lib',
       'constants',
     ],
-    function(three, OrbitControls, DataLoader, NRRDLoader, ShaderLoader, VolumeUtils, lib, constants) {
+    function(
+        three,
+        OrbitControls,
+        DataLoader,
+        NRRDLoader,
+        ShaderLoader,
+        VolumeUtils,
+        Uniforms,
+        lib,
+        constants) {
       async function run() {
         const width = window.innerWidth;
         const height = window.innerHeight;
@@ -185,34 +195,22 @@ define(
             intensityMapCalculator.volume.zLength);
         const normalsSize = shapeSize;
 
-        const uniforms = {
-          u_shape_size: {value: shapeSize},
-          u_shape_data: {value: shapeTexture},
-          u_shape_cmdata: {value: gray},
-          u_shape_bounds: {value: shapeBounds.asVector()},
-
-          u_intensity_size: {value: intensitySize},
-          u_intensity_data: {value: createDefaultTextureFromVolume(intensityMapCalculator.volume)},
-          u_intensity_cmdata: {value: viridis},
-          u_intensity_bounds: {value: intensityBounds.asVector()},
-
-          u_normals_size: {value: normalsSize},
-          u_normals_data: {value: createTextureFromVolume(
-              normalsMapCalculator.volume,
-              three.UnsignedByteType,
-              three.RGBFormat)},
-
-          u_renderstyle: {value: renderContext.settings.renderStyle},
-
-          u_relative_step_size: {value: renderContext.settings.relativeStepSize},
-          uniformal_opacity: {value: renderContext.settings.uniformalOpacity},
-          uniformal_step_opacity: {value: renderContext.settings.uniformalStepOpacity},
-
-          u_proportional_opacity_enabled: {value: renderContext.settings.proportionalOpacityEnabled},
-          u_lighting_enabled: {value: renderContext.settings.lightingEnabled},
-
-          u_scalemode: {value: renderContext.settings.scaleMode},
-        };
+        const uniforms = Uniforms.getUniforms(
+            shapeSize,
+            shapeTexture,
+            gray,
+            shapeBounds.asVector(),
+            intensitySize,
+            createDefaultTextureFromVolume(intensityMapCalculator.volume),
+            viridis,
+            intensityBounds.asVector(),
+            normalsSize,
+            createTextureFromVolume(
+                normalsMapCalculator.volume,
+                three.UnsignedByteType,
+                three.RGBFormat),
+            renderContext.settings);
+        console.log(uniforms);
 
         const material = new three.ShaderMaterial({
           uniforms: uniforms,
@@ -240,12 +238,14 @@ define(
             processNormalsMap.bind(this));
 
         function processIntensityMap() {
+          console.log('intensity map processed...');
           uniforms.u_intensity_data.value = createDefaultTextureFromVolume(
               intensityMapCalculator.volume),
           renderCall();
         }
 
         function processNormalsMap() {
+          console.log('normals map processed...');
           uniforms.u_normals_data.value = createTextureFromVolume(
               normalsMapCalculator.volume,
               three.UnsignedByteType,

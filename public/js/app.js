@@ -9,8 +9,8 @@ requirejs.config({
     'volumeUtils': 'VolumeUtils',
     'lib': 'lib',
     'constants': 'constants',
+    'uniforms': 'Uniforms',
   },
 });
 
-console.log('app');
 requirejs(['main']);
