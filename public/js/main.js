@@ -294,13 +294,34 @@ define(
         const full = false;
         if (full) {
           return [
-            new VolumeUtils.Cuboid(0, 0, 0, xLength, yLength, zLength, 1),
+            new VolumeUtils.Cuboid(xOffset, yOffset, zOffset, xLength, yLength, zLength, 1),
           ];
         } else {
           return [
-            new VolumeUtils.Cuboid(0, 0, 0, xOffset, yOffset, zOffset, 0.75),
-            new VolumeUtils.Cuboid(xLength - xOffset, yLength - yOffset, 0, xOffset, yOffset, zOffset, 0.25),
-            new VolumeUtils.Cuboid(xOffset / 2, yOffset, zLength - zOffset, xLength / 2, yLength / 2, zOffset, 1),
+            new VolumeUtils.Cuboid(
+                xOffset / 2,
+                yOffset / 2,
+                zOffset / 2,
+                xOffset,
+                yOffset,
+                zOffset,
+                0.75),
+            new VolumeUtils.Cuboid(
+                xLength - xOffset / 2,
+                yLength - yOffset / 2,
+                zOffset / 2,
+                xOffset,
+                yOffset,
+                zOffset,
+                0.50),
+            new VolumeUtils.Cuboid(
+                xOffset,
+                yOffset,
+                zLength - zOffset / 2,
+                xLength / 2,
+                yLength / 2,
+                zOffset,
+                1),
           ];
         }
       }

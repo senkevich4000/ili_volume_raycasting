@@ -27,10 +27,10 @@ define(function() {
   SizedVolume.prototype = Object.create(Volume.prototype);
   SizedVolume.prototype.constructor = SizedVolume;
 
-  function Cuboid(xPivot, yPivot, zPivot, xSize, ySize, zSize, intensity) {
-    this.xPivot = xPivot;
-    this.yPivot = yPivot;
-    this.zPivot = zPivot;
+  function Cuboid(xCenter, yCenter, zCenter, xSize, ySize, zSize, intensity) {
+    this.xCenter = xCenter;
+    this.yCenter = yCenter;
+    this.zCenter = zCenter;
 
     this.xSize = xSize;
     this.ySize = ySize;
@@ -85,20 +85,25 @@ define(function() {
     const result = source.volume.data;
 
     source.cuboids.forEach((cuboid) => {
-      const xStartIndex = Math.floor(getIndex(cuboid.xPivot, xStep, xLength));
-      const yStartIndex = Math.floor(getIndex(cuboid.yPivot, yStep, yLength));
-      const zStartIndex = Math.floor(getIndex(cuboid.zPivot, zStep, zLength));
+      console.log(cuboid);
+      const xPivot = getXPivot(cuboid);
+      const yPivot = getYPivot(cuboid);
+      const zPivot = getZPivot(cuboid);
+
+      const xStartIndex = Math.floor(getIndex(xPivot, xStep, xLength));
+      const yStartIndex = Math.floor(getIndex(yPivot, yStep, yLength));
+      const zStartIndex = Math.floor(getIndex(zPivot, zStep, zLength));
 
       const xEndIndex = Math.floor(getIndex(
-          getEndPosition(cuboid.xPivot, cuboid.xSize, xSize),
+          getEndPosition(xPivot, cuboid.xSize, xSize),
           xStep,
           xLength));
       const yEndIndex = Math.floor(getIndex(
-          getEndPosition(cuboid.yPivot, cuboid.ySize, ySize),
+          getEndPosition(yPivot, cuboid.ySize, ySize),
           yStep,
           yLength));
       const zEndIndex = Math.floor(getIndex(
-          getEndPosition(cuboid.zPivot, cuboid.zSize, zSize),
+          getEndPosition(zPivot, cuboid.zSize, zSize),
           zStep,
           zLength));
 
@@ -111,6 +116,18 @@ define(function() {
       }
     });
     source.calculated = true;
+
+    function getXPivot(cuboid) {
+      return cuboid.xCenter - cuboid.xSize / 2;
+    }
+
+    function getYPivot(cuboid) {
+      return cuboid.yCenter - cuboid.ySize / 2;
+    }
+
+    function getZPivot(cuboid) {
+      return cuboid.zCenter - cuboid.zSize / 2;
+    }
 
     function getStep(length, size) {
       return size / length;
