@@ -27,6 +27,11 @@ define(
           u_normals_size: {value: normalsMapSize},
           u_normals_data: {value: normalsMapTexture},
 
+          u_ambient_intensity: {value: 0.3},
+          u_diffuse_intensity: {value: 0.6},
+          u_specular_intensity: {value: 0.3},
+          u_rim_intensity: {value: 0.0},
+
           u_renderstyle: {value: settings.renderStyle},
 
           u_relative_step_size: {value: settings.relativeStepSize},

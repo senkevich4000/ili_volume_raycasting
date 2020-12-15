@@ -23,6 +23,11 @@ uniform float uniformal_step_opacity;
 uniform int u_proportional_opacity_enabled;
 uniform int u_lighting_enabled;
 
+uniform float u_ambient_intensity;
+uniform float u_diffuse_intensity;
+uniform float u_specular_intensity;
+uniform float u_rim_intensity;
+
 varying vec3 v_position;
 varying vec4 v_nearpos;
 varying vec4 v_farpos;
@@ -30,13 +35,15 @@ varying vec4 v_farpos;
 
 // The maximum distance through our rendering volume is sqrt(3).
 const int MAX_STEPS = 887;      // 887 for 512^3, 1774 for 1024^3
-const int REFINEMENT_STEPS = 4;
 
-const vec4 default_ambient_color = vec4(0.2, 0.4, 0.2, 1.0);
-const vec4 default_diffuse_color = vec4(0.8, 0.2, 0.2, 1.0);
-const vec4 default_specular_color = vec4(1.0, 1.0, 1.0, 1.0);
-const float min_lambert_term = 0.6;
-const float shininess = 100.0;
+const vec3 viewVec = vec3(0.0, 0.0, 1.0);
+
+const vec4 default_specular_color = vec4(1.0);
+const vec4 default_rim_color = vec4(1.0);
+const vec3 default_diffuse_light_position = vec3(0.0, 0.0, 1.0);
+const vec3 default_specular_light_position = vec3(0.57735, 0.57735, 0.57735);
+
+const float shininess = 16.0;
 
 const float transperancy_limit = 0.05;
 
@@ -236,28 +243,33 @@ vec4 add_lighting(vec4 color, vec3 normal_vector, vec3 view_ray) {
 
     // View direction
     vec3 V = normalize(view_ray);
-    vec3 N = normalize(normal_vector);
+    normal_vector = normalize(normal_vector);
 
     // Flip normal so it points towards viewer
-    float Nselect = float(dot(N, V) > 0.0);
-    N = (2.0 * Nselect - 1.0) * N;
+    //float Nselect = float(dot(normal_vector, V) > 0.0);
+    //normal_vector = (2.0 * Nselect - 1.0) * normal_vector;
 
-    vec4 diffuse_color = vec4(0.0, 0.0, 0.0, 0.0);
-    vec4 specular_color = vec4(0.0, 0.0, 0.0, 0.0);
+    float dd = 0.0;
+    vec4 final_color = color * u_ambient_intensity;
+    if (u_diffuse_intensity > 0.0) {
+        dd = abs(dot(normal_vector, default_diffuse_light_position));
+        final_color += color * u_diffuse_intensity * dd;
+    }
+    if (u_specular_intensity > 0.0) {
+        vec3 H = normalize(default_specular_light_position + viewVec);
+        float D = abs(dot(normal_vector, H));
+        final_color += default_specular_color * u_specular_intensity * D 
+            / (shininess - D * shininess + D);
+    }
+    if (u_rim_intensity > 0.0) {
+        if (dd == 0.0) {
+            dd = abs(dot(normal_vector, default_diffuse_light_position));
+        }
+        final_color += pow(1.0 - dd, 4.0) * u_rim_intensity * default_rim_color;
+    }
 
-    // Calculate lighting properties
-    float lambertTerm = clamp(dot(N, V), min_lambert_term, 1.0);
-    vec3 H = normalize(V+V); // Halfway vector
-    float specularTerm = pow(dot(H, N), shininess);
-
-    // Calculate colors
-    diffuse_color += lambertTerm;
-    specular_color += specularTerm * specular_color;
-
-    // Calculate final color by componing different components
-    vec4 final_color = color * diffuse_color + specular_color;
     final_color.a = color.a;
-    return final_color;
+    return clamp(final_color, 0.0, 1.0);
 }
 
 void debug_steps(int nsteps, float range) {

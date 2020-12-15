@@ -210,7 +210,6 @@ define(
                 three.UnsignedByteType,
                 three.RGBFormat),
             renderContext.settings);
-        console.log(uniforms);
 
         const material = new three.ShaderMaterial({
           uniforms: uniforms,
