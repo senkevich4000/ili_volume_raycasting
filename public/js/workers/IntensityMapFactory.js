@@ -4,12 +4,12 @@ require(
     {
       baseUrl: '../.',
     },
-    ['VolumeUtils'],
-    function(VolumeUtils) {
+    ['VolumeUtils', 'DataLoader'],
+    function(VolumeUtils, DataLoader) {
       onmessage = function(event) {
         VolumeUtils.calculateIntensityMapFromCuboids(event.data.calculator);
-        postMessage({ready: true, volume: event.data.calculator.volume});
+        postMessage(new DataLoader.ResponseMessage(true, event.data.calculator.volume));
       };
-      postMessage({ready: false});
+      postMessage(new DataLoader.ResponseMessage(false, undefined));
     },
 );
