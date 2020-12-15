@@ -9,7 +9,6 @@ Install: ```npm install``` or ```make install```
 To run the server use ```node index.js``` or ```make```
 
 ## TODO
-* Change the pivot of the cuboid from (0, 0, 0) to its center.
 * Generate colormap from colorstops, remove predefined assets.
 * Think about serialization.
 * DataLoader should also load shape volume.
