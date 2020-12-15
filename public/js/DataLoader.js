@@ -1,56 +1,69 @@
-define(['three', 'volumeUtils'], function(three, volumeUtils) {
-  function DataLoader(intensityMapCalculator, normalsMapCalculator) {
-    this.intensityMapCalculator = intensityMapCalculator;
-    this.normalsMapCalculator = normalsMapCalculator;
-
-    this.intensityMapWorker = new Worker('./js/workers/VolumeFactory.js');
-    this.normalsMapWorker = new Worker('./js/workers/NormalsFactory.js');
-
-    this.intensityMapWorker.onmessage = this.onIntensntyMapWorkerMessage.bind(this);
-    this.normalsMapWorker.onmessage = this.onNormalsMapWorkerMessage.bind(this);
-
-    this.intensityMap = undefined;
-    this.normalsMap = undefined;
+define(function() {
+  function DataLoader() {
+    this.contexts = [];
     return this;
   }
 
-  DataLoader.prototype.start = function(onIntensityMapCalculated, onNormalsMapCalculated) {
-    this.onIntensityMapCalculated = onIntensityMapCalculated;
-    this.onNormalsMapCalculated = onNormalsMapCalculated;
-    this.tryPostMessageToIntensityMapWorker();
-    this.tryPostMessageToNormalsMapWorker();
+  DataLoader.prototype.registerJob = function(pathToWorker, calculator, messageProcessor) {
+    this.contexts.push(
+        new LoadingContext(pathToWorker, calculator, messageProcessor));
   };
 
-  DataLoader.prototype.onIntensntyMapWorkerMessage = function(event) {
-    if (event.data.ready) {
-      this.intensityMapCalculator.volume = event.data.volume;
-      this.onIntensityMapCalculated();
-    } else {
-      this.tryPostMessageToIntensityMapWorker();
-    }
+  DataLoader.prototype.start = function() {
+    this.contexts.forEach(postWaitingMessage);
   };
 
-  DataLoader.prototype.onNormalsMapWorkerMessage = function(event) {
-    if (event.data.ready) {
-      this.normalsMapCalculator.volume = event.data.volume;
-      this.onNormalsMapCalculated();
-    } else {
-      this.tryPostMessageToNormalsMapWorker();
-    }
+  function LoadingContext(pathToWorker, calculator, resultProcessor) {
+    this.worker = new Worker(pathToWorker);
+    this.calculator = calculator;
+    this.worker.onmessage = (function(event) {
+      switch (event.data.type) {
+        case MessageType.initializing:
+          postWaitingMessage(this);
+          break;
+        case MessageType.initialized:
+          postMessage(this);
+          break;
+        case MessageType.finished:
+          resultProcessor(event.data.data);
+          break;
+      }
+    }).bind(this);
+  }
+
+  const MessageType = {
+    initializing: 0,
+    initialized: 1,
+    waiting: 2,
+    request: 3,
+    finished: 4,
+  };
+  Object.freeze(MessageType);
+
+  function postMessage(loadingContext) {
+    loadingContext.worker.postMessage(
+        new RequestCalculationMessage(MessageType.request, loadingContext.calculator));
   };
 
-  DataLoader.prototype.tryPostMessageToIntensityMapWorker = function() {
-    this.intensityMapWorker.postMessage({
-      calculator: this.intensityMapCalculator,
-    });
-  };
+  function postWaitingMessage(loadingContext) {
+    loadingContext.worker.postMessage(
+        new RequestCalculationMessage(MessageType.waiting, undefined));
+  }
 
-  DataLoader.prototype.tryPostMessageToNormalsMapWorker = function() {
-    this.normalsMapWorker.postMessage({
-      calculator: this.normalsMapCalculator,
-    });
-  };
+  function RequestCalculationMessage(type, calculator) {
+    this.type = type;
+    this.calculator = calculator;
 
-  return {DataLoader};
+    return this;
+  }
+
+  function ResponseMessage(type, data) {
+    this.type = type;
+    this.data = data;
+
+    return this;
+  }
+
+  return {DataLoader, ResponseMessage, MessageType};
 });
 

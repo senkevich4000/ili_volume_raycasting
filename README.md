@@ -13,6 +13,5 @@ To run the server use ```node index.js``` or ```make```
 * Think about serialization.
 * DataLoader should also load shape volume.
 * Code refactoring required. 
-    * DataLoader and VolumeUtils should have consistent infrastructure.
     * Add errors handling.
 * Add comments!

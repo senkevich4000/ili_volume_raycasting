@@ -85,7 +85,6 @@ define(function() {
     const result = source.volume.data;
 
     source.cuboids.forEach((cuboid) => {
-      console.log(cuboid);
       const xPivot = getXPivot(cuboid);
       const yPivot = getYPivot(cuboid);
       const zPivot = getZPivot(cuboid);

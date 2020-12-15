@@ -179,9 +179,15 @@ define(
             shapeVolume.yLength,
             shapeVolume.zLength,
             createCuboids(shapeVolume.xLength, shapeVolume.yLength, shapeVolume.zLength));
-        const dataLoader = new DataLoader.DataLoader(
+        const dataLoader = new DataLoader.DataLoader();
+        dataLoader.registerJob(
+            'js/workers/IntensityMapFactory.js',
             intensityMapCalculator,
-            normalsMapCalculator);
+            processIntensityMap.bind(this));
+        dataLoader.registerJob(
+            'js/workers/NormalsFactory.js',
+            normalsMapCalculator,
+            processNormalsMap.bind(this));
 
         const shapeTexture = createDefaultTextureFromVolume(shapeVolume);
 
@@ -232,21 +238,19 @@ define(
         renderContext.scene.add(mesh);
         renderCall();
 
-        dataLoader.start(
-            processIntensityMap.bind(this),
-            processNormalsMap.bind(this));
+        dataLoader.start();
 
-        function processIntensityMap() {
+        function processIntensityMap(intensityVolume) {
           console.log('intensity map processed...');
           uniforms.u_intensity_data.value = createDefaultTextureFromVolume(
-              intensityMapCalculator.volume),
+              intensityVolume);
           renderCall();
         }
 
-        function processNormalsMap() {
+        function processNormalsMap(normalsVolume) {
           console.log('normals map processed...');
           uniforms.u_normals_data.value = createTextureFromVolume(
-              normalsMapCalculator.volume,
+              normalsVolume,
               three.UnsignedByteType,
               three.RGBFormat);
           renderCall();
