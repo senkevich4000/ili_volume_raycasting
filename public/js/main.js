@@ -9,6 +9,7 @@ define(
       'uniforms',
       'lib',
       'constants',
+      'cuboidsReader',
     ],
     function(
         three,
@@ -19,7 +20,8 @@ define(
         VolumeUtils,
         Uniforms,
         lib,
-        constants) {
+        constants,
+        CuboidsReader) {
       async function run() {
         const width = window.innerWidth;
         const height = window.innerHeight;
@@ -171,14 +173,17 @@ define(
         const normalsMapCalculator = new VolumeUtils.NormalsMapCalculator(
             shapeVolume,
             normalsBounds);
+
+        const cuboids = await CuboidsReader.read('./assets/data/ili.ignore.csv')
+            .catch((error) => console.error(error));
         const intensityMapCalculator = new VolumeUtils.IntencityMapFromCuboidsCalculator(
             shapeVolume.xLength,
             shapeVolume.yLength,
             shapeVolume.zLength,
-            shapeVolume.xLength,
-            shapeVolume.yLength,
-            shapeVolume.zLength,
-            createCuboids(shapeVolume.xLength, shapeVolume.yLength, shapeVolume.zLength));
+            shapeVolume.xLength * 2,
+            shapeVolume.yLength * 2,
+            shapeVolume.zLength * 2,
+            cuboids);
         const dataLoader = new DataLoader.DataLoader();
         dataLoader.registerJob(
             'js/workers/IntensityMapFactory.js',

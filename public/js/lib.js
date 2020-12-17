@@ -56,5 +56,9 @@ define(['three', 'constants'], function(three, constants) {
     return this;
   }
 
-  return {Bounds, RenderStyle, ScaleMode, VolumeRenderingSettings};
+  function calculateNormalValue(value, bounds) {
+    return (value - bounds.min) / (bounds.max - bounds.min);
+  }
+
+  return {Bounds, RenderStyle, ScaleMode, VolumeRenderingSettings, calculateNormalValue};
 });

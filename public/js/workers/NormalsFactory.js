@@ -2,7 +2,10 @@ importScripts('./../node_modules/requirejs/require.js');
 
 require(
     {
-      baseUrl: '../.',
+      baseUrl: './../',
+      paths: {
+        'three': 'node_modules/three/build/three',
+      },
     },
     ['VolumeUtils', 'DataLoader'],
     function(VolumeUtils, DataLoader) {
