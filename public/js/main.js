@@ -317,7 +317,7 @@ define(
                 xOffset,
                 yOffset,
                 zOffset,
-                0.50),
+                1),
             new VolumeUtils.Cuboid(
                 xOffset,
                 yOffset,
@@ -325,7 +325,7 @@ define(
                 xLength / 2,
                 yLength / 2,
                 zOffset,
-                1),
+                0.5),
           ];
         }
       }
