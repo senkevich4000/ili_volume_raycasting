@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "daikon": "^1.2.42",
+    "dicom-parser": "^1.8.7",
+    "requirejs": "^2.3.6",
+    "three": "^0.123.0"
+  }
+}

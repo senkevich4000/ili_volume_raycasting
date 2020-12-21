@@ -10,6 +10,7 @@ define(
       'lib',
       'constants',
       'cuboidsReader',
+      'dicomReader',
     ],
     function(
         three,
@@ -21,17 +22,19 @@ define(
         Uniforms,
         lib,
         constants,
-        CuboidsReader) {
+        CuboidsReader,
+        DicomReader) {
       async function run() {
+
         const width = window.innerWidth;
         const height = window.innerHeight;
 
         const scene = new three.Scene();
         scene.background = new three.Color(constants.MainCameraBackgroundColor);
 
-        const dataWidth = 128;
-        const dataHeight = 128;
-        const dataDepth = 256;
+        const dataWidth = 768;
+        const dataHeight = 768;
+        const dataDepth = 499;
         const dataMax = Math.max(Math.max(dataWidth, dataHeight), dataDepth);
 
         const camera = createCamera(dataMax);
@@ -55,13 +58,13 @@ define(
         const nrrdLoader = await NRRDLoader
             .then((LoaderConstructor) => new LoaderConstructor());
         console.log('Trying to load the data...');
-        const shapeVolume = await loadAsync(
-            nrrdLoader,
-            'assets/models/stent.nrrd',
-            notifyProgress.bind(renderContext))
-            .then((volume) => new VolumeUtils.Volume(
-                volume.data, volume.xLength, volume.yLength, volume.zLength))
-            .catch((error) => errorOnFileLoad.call(renderContext, error));
+        const shapeVolume = await DicomReader.fetchDicom(
+            './assets/data/dicom.ignore.tar.gz')
+          .catch((error) => {
+              console.error('error on dicom read:')
+              console.error(error)
+            });
+        console.log('Shape volume', shapeVolume);
 
         if (shapeVolume) {
           console.info('Data loaded!');
@@ -165,6 +168,7 @@ define(
         }
 
         const shapeBounds = lib.Bounds.fromArray(shapeVolume.data);
+        console.log('Shape bounds:', shapeBounds);
         const intensityBounds = new lib.Bounds(0, 1);
         const normalsBounds = new lib.Bounds(
             constants.Uint8MinValue,
@@ -174,15 +178,15 @@ define(
             shapeVolume,
             normalsBounds);
 
-        const cuboids = await CuboidsReader.read('./assets/data/ili.ignore.csv')
+        const cuboids = await CuboidsReader.read('./assets/data/ili.csv')
             .catch((error) => console.error(error));
         const intensityMapCalculator = new VolumeUtils.IntencityMapFromCuboidsCalculator(
             shapeVolume.xLength,
             shapeVolume.yLength,
             shapeVolume.zLength,
-            shapeVolume.xLength * 2,
-            shapeVolume.yLength * 2,
-            shapeVolume.zLength * 2,
+            shapeVolume.xLength,
+            shapeVolume.yLength,
+            shapeVolume.zLength,
             cuboids);
         const dataLoader = new DataLoader.DataLoader();
         dataLoader.registerJob(
@@ -194,7 +198,10 @@ define(
             normalsMapCalculator,
             processNormalsMap.bind(this));
 
-        const shapeTexture = createDefaultTextureFromVolume(shapeVolume);
+        const shapeTexture = createTextureFromVolume(
+            shapeVolume,
+            three.UnsingedShortType,
+            three.RedFormat);
 
         const shapeSize = new three.Vector3(
             shapeVolume.xLength,

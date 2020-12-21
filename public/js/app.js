@@ -12,7 +12,10 @@ requirejs.config({
     'lib': 'lib',
     'constants': 'constants',
     'uniforms': 'Uniforms',
+    'dicomReader': 'DicomReader',
+    'daikon': 'node_modules/daikon/release/current/daikon',
   },
 });
 
 requirejs(['main']);
+
