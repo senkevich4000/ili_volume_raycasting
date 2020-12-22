@@ -176,6 +176,7 @@ void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
 
         vec4 current_color = shape_color; 
 
+        /*
         float intensity_value = intensity_sample(loc);
         float normalized_intensity_value = normalized_value(
             intensity_value, 
@@ -188,9 +189,10 @@ void raycast(vec3 start_loc, vec3 step, int nsteps, vec3 view_ray) {
             current_color.rgb = mix(current_color.rgb, intensity_color.rgb, intensity_color.a);
         }
       
+        */
         if (u_lighting_enabled == 1) {
-            vec3 normal_vector = normals_sample(loc);
-            current_color = add_lighting(current_color, normal_vector, view_ray);
+            //vec3 normal_vector = normals_sample(loc);
+            //current_color = add_lighting(current_color, normal_vector, view_ray);
         }
   
         current_color.a *= uniformal_step_opacity;

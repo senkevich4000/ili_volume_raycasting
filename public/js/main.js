@@ -38,12 +38,14 @@ define(
         const dataMax = Math.max(Math.max(dataWidth, dataHeight), dataDepth);
 
         const camera = createCamera(dataMax);
+        camera.far = 10000;
 
         const view = new View();
         const renderer = new three.WebGLRenderer({canvas: view.canvas});
         renderer.setSize(width, height);
 
         const settings = new lib.VolumeRenderingSettings();
+        settings.relative_step_size = 100;
         const renderContext = new RenderContext(
             settings,
             view,
@@ -55,22 +57,33 @@ define(
 
         await createOrbitControls(camera, view.bottomElement, renderCall);
 
+        console.log('Trying to load the data...');
         const nrrdLoader = await NRRDLoader
             .then((LoaderConstructor) => new LoaderConstructor());
-        console.log('Trying to load the data...');
-        const shapeVolume = await DicomReader.fetchDicom(
-            './assets/data/dicom.ignore.tar.gz')
-          .catch((error) => {
-              console.error('error on dicom read:')
-              console.error(error)
-            });
-        console.log('Shape volume', shapeVolume);
-
+        const useDemoData = false;
+        let shapeVolume = undefined;
+        if (useDemoData) {
+          shapeVolume = await loadAsync(
+              nrrdLoader,
+              './assets/data/BONE.nrrd',
+              notifyProgress.bind(renderContext))
+            .catch((error) => consle.error(error));
+        } else {
+          shapeVolume = await DicomReader.fetchVolumeFromDicom(
+              'readAllFiles/LUNG_MAP_D187_25/2')
+            .catch((error) => console.error('Dicom read error:', error));
+        }
         if (shapeVolume) {
+          shapeVolume = {
+            xLength: shapeVolume.xLength,
+            yLength: shapeVolume.yLength,
+            zLength: shapeVolume.zLength,
+            data: Float32Array.from(shapeVolume.data),
+          };
+          console.log('Shape volume', shapeVolume);
           console.info('Data loaded!');
           await processData(renderContext, renderCall, shapeVolume);
         }
-
         renderCall();
       }
 
@@ -189,18 +202,18 @@ define(
             shapeVolume.zLength,
             cuboids);
         const dataLoader = new DataLoader.DataLoader();
-        dataLoader.registerJob(
-            'js/workers/IntensityMapFactory.js',
-            intensityMapCalculator,
-            processIntensityMap.bind(this));
-        dataLoader.registerJob(
-            'js/workers/NormalsFactory.js',
-            normalsMapCalculator,
-            processNormalsMap.bind(this));
+        //dataLoader.registerJob(
+        //    'js/workers/IntensityMapFactory.js',
+        //    intensityMapCalculator,
+        //    processIntensityMap.bind(this));
+        //dataLoader.registerJob(
+        //    'js/workers/NormalsFactory.js',
+        //    normalsMapCalculator,
+        //    processNormalsMap.bind(this));
 
         const shapeTexture = createTextureFromVolume(
             shapeVolume,
-            three.UnsingedShortType,
+            three.FloatType,
             three.RedFormat);
 
         const shapeSize = new three.Vector3(
@@ -250,7 +263,7 @@ define(
         renderContext.scene.add(mesh);
         renderCall();
 
-        dataLoader.start();
+        //dataLoader.start();
 
         function processIntensityMap(intensityVolume) {
           console.log('intensity map processed...');
@@ -363,6 +376,7 @@ define(
       }
 
       function render() {
+        console.log('render');
         const aspect = setScissorForElement.call(this, this.view.bottomElement);
         updateOrthoCamera(this.camera, this.maxDimension, aspect);
         this.scene.background.set(constants.MainCameraBackgroundColor);
