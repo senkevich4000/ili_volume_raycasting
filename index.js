@@ -13,10 +13,7 @@ app.get('/readAllFiles/:path/:seriesIndex', async function (req, res) {
     rootPath, 
     req.params.path,
     req.params.seriesIndex);
-  console.log('Volume is ready:', volume);
-  const json = JSON.stringify(volume);
-  console.log(json);
-  res.send(json);
+  res.send(Buffer.from(volume));
 });
 
 app.listen(port, () => {

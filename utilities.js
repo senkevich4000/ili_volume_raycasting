@@ -17,18 +17,17 @@ async function readVolumeFromDicom(rootPath, path, seriesIndex) {
   const dataScaleIntercept = firstImage.getDataScaleIntercept();
   const dataScaleSlope = firstImage.getDataScaleSlope();
   const rawData = new Uint16Array(image3D);
-  const resultData = new Int16Array(rawData.length);
+  const resultData = new ArrayBuffer(4 + 4 + 4 + image3D.byteLength);
+  const resultView = new DataView(resultData);
+  resultView.setInt32(0, firstImage.getCols(), true);
+  resultView.setInt32(4, firstImage.getRows(), true);
+  resultView.setInt32(8, series.images.length, true);
   for(let itemIndex = 0; itemIndex < rawData.length; ++itemIndex) {
-    resultData[itemIndex] = rawData[itemIndex] * dataScaleSlope + dataScaleIntercept;
+    const offset = 12 + itemIndex * 2;
+    const value = rawData[itemIndex] * dataScaleSlope + dataScaleIntercept;
+    resultView.setInt16(offset, value, true);
   }
-  console.log(resultData);
-  const volume = {
-    xLength: firstImage.getCols(),
-    yLength: firstImage.getRows(),
-    zLength: series.images.length,
-    data: resultData,
-  };
-  return volume;
+  return resultData;
 
   function fileFilter(file) {
     const rawBuffer = fs.readFileSync(file);

@@ -24,6 +24,7 @@ define(
         constants,
         CuboidsReader,
         DicomReader) {
+      const useDemoData = true;
       async function run() {
 
         const width = window.innerWidth;
@@ -58,7 +59,6 @@ define(
         console.log('Trying to load the data...');
         const nrrdLoader = await NRRDLoader
             .then((LoaderConstructor) => new LoaderConstructor());
-        const useDemoData = true;
         let shapeVolume = undefined;
         if (useDemoData) {
           shapeVolume = await loadAsync(
@@ -189,7 +189,6 @@ define(
             shapeVolume,
             normalsBounds);
 
-        const useDemoData = true;
         let cuboids = undefined;
         if (useDemoData) {
           cuboids = createCuboids(
