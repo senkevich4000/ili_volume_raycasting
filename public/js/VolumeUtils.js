@@ -36,7 +36,8 @@ define(
           xSize,
           ySize,
           zSize,
-          cuboids) {
+          cuboids,
+          moleculeIndex) {
         const result = new Float32Array(xLength * yLength * zLength);
         result.fill(Number.NaN); // Fake value that indiates that voxel should not be colored.
         this.volume = new SizedVolume(
@@ -49,6 +50,7 @@ define(
             zSize);
 
         this.cuboids = cuboids;
+        this.moleculeIndex = moleculeIndex;
         this.calculated = false;
       }
 
@@ -73,9 +75,7 @@ define(
         const result = source.volume.data;
 
         const intensities = source.cuboids
-            .map((cuboid) => cuboid.molecules)
-            .reduce((left, right) => left.concat(right))
-            .map((molecule) => molecule.intensity);
+            .map((cuboid) => cuboid.molecules[source.moleculeIndex].intensity);
         const cuboidBounds = lib.Bounds.fromArray(intensities);
 
         source.cuboids.forEach((cuboid) => {
@@ -104,7 +104,9 @@ define(
             for (let yIndex = yStartIndex; yIndex <= yEndIndex; ++yIndex) {
               for (let zIndex = zStartIndex; zIndex <= zEndIndex; ++zIndex) {
                 result[resultIndexer.get(xIndex, yIndex, zIndex)] =
-                  lib.calculateNormalValue(cuboid.intensity, cuboidBounds);
+                  lib.calculateNormalValue(
+                    cuboid.molecules[source.moleculeIndex].intensity,
+                    cuboidBounds);
               }
             }
           }

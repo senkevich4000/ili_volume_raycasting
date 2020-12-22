@@ -59,6 +59,6 @@ define(
       };
       Object.freeze(FieldPositionMap);
 
-      return {Cuboid, read};
+      return {Cuboid, Molecule, read};
     },
 );

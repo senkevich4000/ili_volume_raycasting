@@ -32,20 +32,18 @@ define(
         const scene = new three.Scene();
         scene.background = new three.Color(constants.MainCameraBackgroundColor);
 
-        const dataWidth = 768;
-        const dataHeight = 768;
-        const dataDepth = 499;
+        const dataWidth = 128;
+        const dataHeight = 128;
+        const dataDepth = 256;
         const dataMax = Math.max(Math.max(dataWidth, dataHeight), dataDepth);
 
         const camera = createCamera(dataMax);
-        camera.far = 10000;
 
         const view = new View();
         const renderer = new three.WebGLRenderer({canvas: view.canvas});
         renderer.setSize(width, height);
 
         const settings = new lib.VolumeRenderingSettings();
-        settings.relative_step_size = 100;
         const renderContext = new RenderContext(
             settings,
             view,
@@ -60,12 +58,12 @@ define(
         console.log('Trying to load the data...');
         const nrrdLoader = await NRRDLoader
             .then((LoaderConstructor) => new LoaderConstructor());
-        const useDemoData = false;
+        const useDemoData = true;
         let shapeVolume = undefined;
         if (useDemoData) {
           shapeVolume = await loadAsync(
               nrrdLoader,
-              './assets/data/BONE.nrrd',
+              './assets/models/stent.nrrd',
               notifyProgress.bind(renderContext))
             .catch((error) => consle.error(error));
         } else {
@@ -191,8 +189,18 @@ define(
             shapeVolume,
             normalsBounds);
 
-        const cuboids = await CuboidsReader.read('./assets/data/ili.csv')
-            .catch((error) => console.error(error));
+        const useDemoData = true;
+        let cuboids = undefined;
+        if (useDemoData) {
+          cuboids = createCuboids(
+              shapeVolume.xLength,
+              shapeVolume.yLength,
+              shapeVolume.zLength);
+        } else {
+          cuboids = await CuboidsReader.read('./assets/data/ili.csv')
+              .catch((error) => console.error(error));
+        }
+        const moleculeIndex = 0;
         const intensityMapCalculator = new VolumeUtils.IntencityMapFromCuboidsCalculator(
             shapeVolume.xLength,
             shapeVolume.yLength,
@@ -200,16 +208,17 @@ define(
             shapeVolume.xLength,
             shapeVolume.yLength,
             shapeVolume.zLength,
-            cuboids);
+            cuboids,
+            moleculeIndex);
         const dataLoader = new DataLoader.DataLoader();
-        //dataLoader.registerJob(
-        //    'js/workers/IntensityMapFactory.js',
-        //    intensityMapCalculator,
-        //    processIntensityMap.bind(this));
-        //dataLoader.registerJob(
-        //    'js/workers/NormalsFactory.js',
-        //    normalsMapCalculator,
-        //    processNormalsMap.bind(this));
+        dataLoader.registerJob(
+            'js/workers/IntensityMapFactory.js',
+            intensityMapCalculator,
+            processIntensityMap.bind(this));
+        dataLoader.registerJob(
+            'js/workers/NormalsFactory.js',
+            normalsMapCalculator,
+            processNormalsMap.bind(this));
 
         const shapeTexture = createTextureFromVolume(
             shapeVolume,
@@ -320,39 +329,52 @@ define(
         const yOffset = yLength / 2;
         const zOffset = zLength / 2;
 
+        const cuboids = []
+
         const full = false;
         if (full) {
-          return [
-            new VolumeUtils.Cuboid(xOffset, yOffset, zOffset, xLength, yLength, zLength, 1),
-          ];
+            const fullVolumeCuboid = new CuboidsReader.Cuboid(
+              xOffset,
+              yOffset,
+              zOffset,
+              xLength,
+              yLength,
+              zLength);
+          fullVolumeCuboid.molecules.push(new CuboidsReader.Molecule('m1', 1));
+          cuboids.push(fullVolumeCuboid);
         } else {
-          return [
-            new VolumeUtils.Cuboid(
-                xOffset / 2,
-                yOffset / 2,
-                zOffset / 2,
-                xOffset,
-                yOffset,
-                zOffset,
-                0.75),
-            new VolumeUtils.Cuboid(
-                xLength - xOffset / 2,
-                yLength - yOffset / 2,
-                zOffset / 2,
-                xOffset,
-                yOffset,
-                zOffset,
-                1),
-            new VolumeUtils.Cuboid(
-                xOffset,
-                yOffset,
-                zLength - zOffset / 2,
-                xLength / 2,
-                yLength / 2,
-                zOffset,
-                0.5),
-          ];
+          const cuboid1 = new CuboidsReader.Cuboid(
+              '1a',
+              xOffset / 2,
+              yOffset / 2,
+              zOffset / 2,
+              xOffset,
+              yOffset,
+              zOffset);
+          cuboid1.molecules.push(new CuboidsReader.Molecule('m1', 0.75));
+          const cuboid2 = new CuboidsReader.Cuboid(
+              '1b',
+              xLength - xOffset / 2,
+              yLength - yOffset / 2,
+              zOffset / 2,
+              xOffset,
+              yOffset,
+              zOffset);
+          cuboid2.molecules.push(new CuboidsReader.Molecule('m1', 0.5));
+          const cuboid3 = new CuboidsReader.Cuboid(
+              '1c',
+              xOffset,
+              yOffset,
+              zLength - zOffset / 2,
+              xLength / 2,
+              yLength / 2,
+              zOffset);
+          cuboid3.molecules.push(new CuboidsReader.Molecule('m1', 1.0));
+          cuboids.push(cuboid1);
+          cuboids.push(cuboid2);
+          cuboids.push(cuboid3);
         }
+        return cuboids;
       }
 
       function setScissorForElement(element) {
